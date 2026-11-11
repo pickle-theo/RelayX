@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"relayx/phase5/internal/delivery"
+	"relayx/phase5/internal/message"
 	"relayx/phase5/internal/protocol"
 	"relayx/phase5/internal/registry"
 	"relayx/phase5/internal/session"
@@ -69,6 +70,9 @@ type Config struct {
 	// Forwarder forwards deliveries and kicks to the node that owns a remote
 	// session. Nil means cross-node traffic cannot be forwarded.
 	Forwarder NodeForwarder
+	// TenantID is recorded on messages accepted through SEND. The TCP protocol
+	// has no tenant field, so one gateway serves one tenant.
+	TenantID string
 }
 
 func (c Config) withDefaults() Config {
@@ -87,6 +91,9 @@ func (c Config) withDefaults() Config {
 	if c.PullMaxLimit < c.PullLimit {
 		c.PullMaxLimit = c.PullLimit
 	}
+	if c.TenantID == "" {
+		c.TenantID = store.DefaultTenant
+	}
 	return c
 }
 
@@ -95,6 +102,7 @@ func (c Config) withDefaults() Config {
 type Handler struct {
 	sessions  *session.Manager
 	store     *store.Store
+	messages  *message.Service
 	deliverer *delivery.Deliverer
 	cfg       Config
 	logger    *slog.Logger
@@ -116,6 +124,7 @@ func New(sessions *session.Manager, st *store.Store, cfg Config, logger *slog.Lo
 	return &Handler{
 		sessions:  sessions,
 		store:     st,
+		messages:  message.New(st, cfg.MessageTTL, 0),
 		deliverer: delivery.NewDeliverer(sessions),
 		cfg:       cfg.withDefaults(),
 		logger:    logger,
@@ -433,66 +442,27 @@ func (h *Handler) handleSend(c *transport.Conn, f *protocol.Frame) {
 		return
 	}
 
-	// Resolve the live sessions before accepting so the delivery rows of online
-	// targets are persisted directly as SENT: the realtime push then needs no
-	// second write transaction. A session that goes away in between is covered
-	// by the retry worker, exactly like a push that fails after being marked.
-	targets := make(map[store.Endpoint]*session.Session, len(recipients))
-	online := make(map[store.Endpoint]bool, len(recipients))
-	remote := make(map[store.Endpoint]registry.Route)
-	var clusterCtx context.Context
-	if h.clusterEnabled() {
-		var cancel context.CancelFunc
-		clusterCtx, cancel = h.clusterContext()
-		defer cancel()
-	}
-	for _, ep := range recipients {
-		if target := h.sessions.FindByDevice(ep.UserID, ep.DeviceID); target != nil {
-			targets[ep] = target
-			online[ep] = true
-			continue
-		}
-		if clusterCtx == nil {
-			continue
-		}
-		// A remote live session is treated like a local one: the row is SENT and
-		// the retry schedule is armed, so a lost forward still recovers.
-		route, ok, err := h.cfg.Registry.LookupRoute(clusterCtx, ep.UserID, ep.DeviceID)
-		if err != nil {
-			h.logger.Warn("gateway: lookup recipient route failed",
-				"user_id", ep.UserID, "device_id", ep.DeviceID, "error", err)
-			continue
-		}
-		if !ok || route.NodeID == "" {
-			continue
-		}
-		alive, err := h.cfg.Registry.NodeAlive(clusterCtx, route.NodeID)
-		if err != nil {
-			h.logger.Warn("gateway: check recipient node failed",
-				"node_id", route.NodeID, "user_id", ep.UserID, "device_id", ep.DeviceID, "error", err)
-			continue
-		}
-		if !alive {
-			continue
-		}
-		remote[ep] = route
-		online[ep] = true
-	}
-
-	ctx, cancel := h.dbContext()
-	defer cancel()
-
-	res, err := h.store.AcceptMessage(ctx, store.AcceptRequest{
+	// Phase 5 accepts the message only: the delivery rows and the realtime push
+	// are produced asynchronously by fan-out and the delivery worker.
+	req := message.Request{
+		TenantID:    h.cfg.TenantID,
 		ClientMsgID: f.MsgID,
 		FromUser:    sess.UserID,
 		FromDevice:  sess.DeviceID,
 		TargetType:  targetType,
 		Target:      body.Target,
 		Payload:     body.Payload,
-		ExpireAt:    time.Now().Add(h.cfg.MessageTTL),
-		Endpoints:   recipients,
-		Online:      online,
-	})
+		TTL:         h.cfg.MessageTTL,
+	}
+	if targetType == store.TargetEndpoint && len(recipients) == 1 {
+		req.TargetUser = recipients[0].UserID
+		req.TargetDevice = recipients[0].DeviceID
+	}
+
+	ctx, cancel := h.dbContext()
+	defer cancel()
+
+	res, err := h.messages.Accept(ctx, req)
 	if err != nil {
 		h.logger.Warn("gateway: accept message failed",
 			"client_msg_id", f.MsgID,
@@ -510,80 +480,6 @@ func (h *Handler) handleSend(c *transport.Conn, f *protocol.Frame) {
 
 	h.accepted.Add(1)
 	_ = h.sendSendAck(c, f.MsgID, protocol.SendAckAccepted, res.MessageID, "")
-
-	for _, ep := range recipients {
-		target := targets[ep]
-		if target == nil {
-			// Offline target: the row stays PENDING until PULL or the TTL.
-			continue
-		}
-		if err := h.deliverer.Deliver(target, res.MessageID, sess.UserID, sess.DeviceID, body.Payload); err != nil {
-			h.logger.Debug("gateway: realtime deliver failed",
-				"message_id", res.MessageID,
-				"user_id", ep.UserID,
-				"device_id", ep.DeviceID,
-				"error", err)
-		}
-	}
-
-	h.forwardRemote(recipients, remote, res.MessageID, sess, body.Payload)
-}
-
-// forwardRemote pushes an accepted message to the nodes that own remote online
-// targets. Failures only lose the realtime push: the delivery row is already
-// SENT with a retry schedule, and the owning node's worker will retry it.
-func (h *Handler) forwardRemote(recipients []store.Endpoint, remote map[store.Endpoint]registry.Route, messageID uint64, from *session.Session, payload []byte) {
-	if len(remote) == 0 || h.cfg.Forwarder == nil {
-		return
-	}
-	// One address lookup per node is enough for a single SEND; an empty string
-	// caches a failed lookup so later endpoints skip it too.
-	addrs := make(map[string]string, len(remote))
-	for _, ep := range recipients {
-		route, ok := remote[ep]
-		if !ok {
-			continue
-		}
-		addr, seen := addrs[route.NodeID]
-		if !seen {
-			ctx, cancel := h.clusterContext()
-			node, found, err := h.cfg.Registry.LookupNode(ctx, route.NodeID)
-			cancel()
-			if err != nil || !found {
-				h.logger.Warn("gateway: forward target node unavailable",
-					"node_id", route.NodeID,
-					"user_id", ep.UserID,
-					"device_id", ep.DeviceID,
-					"error", err)
-				addrs[route.NodeID] = ""
-				continue
-			}
-			addr = node.Addr
-			addrs[route.NodeID] = addr
-		}
-		if addr == "" {
-			continue
-		}
-
-		ctx, cancel := h.clusterContext()
-		err := h.cfg.Forwarder.ForwardDeliver(ctx, route.NodeID, addr, messageID, &protocol.NodeDeliverBody{
-			UserID:        ep.UserID,
-			DeviceID:      ep.DeviceID,
-			FromSessionID: from.ID,
-			FromUser:      from.UserID,
-			FromDevice:    from.DeviceID,
-			Payload:       payload,
-		})
-		cancel()
-		if err != nil {
-			h.logger.Debug("gateway: forward deliver failed",
-				"message_id", messageID,
-				"node_id", route.NodeID,
-				"user_id", ep.UserID,
-				"device_id", ep.DeviceID,
-				"error", err)
-		}
-	}
 }
 
 // resolveRecipients turns a SEND body into the recipient endpoint set. A status

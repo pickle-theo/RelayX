@@ -215,6 +215,7 @@ func TestFanOutToUserDevices(t *testing.T) {
 	if ack.MessageID == 0 {
 		t.Fatal("SEND_ACK message_id = 0, want the platform message id")
 	}
+	flushPipeline(t, f)
 
 	for name, conn := range map[string]*testClient{"bob/pc": bobPC, "bob/tablet": bobTablet} {
 		d := conn.expectDeliver(t, ack.MessageID)
@@ -250,6 +251,7 @@ func TestEndpointDeliveryIsolated(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED", ack.Status)
 	}
+	flushPipeline(t, f)
 
 	d := bobPC.expectDeliver(t, ack.MessageID)
 	if d.FromUser != "alice" || d.FromDevice != "phone" {
@@ -276,6 +278,7 @@ func TestSendToSelf(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED", ack.Status)
 	}
+	flushPipeline(t, f)
 	d := alice.expectDeliver(t, ack.MessageID)
 	if d.FromUser != "alice" || d.FromDevice != "phone" {
 		t.Fatalf("DELIVER from %s/%s, want alice/phone", d.FromUser, d.FromDevice)
@@ -298,6 +301,7 @@ func TestDuplicateSendIsIdempotent(t *testing.T) {
 	if first.Status != protocol.SendAckAccepted {
 		t.Fatalf("first SEND_ACK status = %d, want ACCEPTED", first.Status)
 	}
+	flushPipeline(t, f)
 	bob.expectDeliver(t, first.MessageID)
 
 	second := alice.sendRouteExpectAck(t, 99, protocol.TargetUser, "bob", []byte("once"))
@@ -315,8 +319,8 @@ func TestDuplicateSendIsIdempotent(t *testing.T) {
 	if n := mustCount(t, f, "SELECT count(*) FROM messages"); n != 1 {
 		t.Fatalf("messages count = %d, want 1", n)
 	}
-	if n := mustCount(t, f, "SELECT count(*) FROM deliveries"); n != 1 {
-		t.Fatalf("deliveries count = %d, want 1", n)
+	if n := mustCount(t, f, "SELECT count(*) FROM outbox"); n != 1 {
+		t.Fatalf("outbox count = %d, want 1 (a duplicate must not enqueue another event)", n)
 	}
 }
 
@@ -384,6 +388,7 @@ func TestReceiptAndBusinessAck(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED", ack.Status)
 	}
+	flushPipeline(t, f)
 
 	bob, _ := loginOK(t, f, "bob", "d0")
 	pullBody, err := protocol.AppendPullBody(nil, &protocol.PullBody{Cursor: 0, Limit: 100})
@@ -462,6 +467,7 @@ func TestPullRestoresOfflineMessages(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED", ack.Status)
 	}
+	flushPipeline(t, f)
 	if n := mustCount(t, f, "SELECT count(*) FROM deliveries"); n != 1 {
 		t.Fatalf("deliveries count = %d, want 1", n)
 	}
@@ -551,13 +557,14 @@ func TestDuplicateLoginKicksOldConnection(t *testing.T) {
 }
 
 // TestSlowConsumerDoesNotBlockSender verifies that a target which never reads
-// cannot stall the sender: the tiny send queue (1 frame / 64 bytes) cannot hold
-// a DELIVER frame, so the transport drops the slow consumer instead.
+// cannot stall the sender. SEND only writes the message and its outbox row, so a
+// burst never touches the target socket; the drop happens later when the
+// delivery engine pushes into the tiny queue (1 frame / 64 bytes).
 //
-// What is asserted is the property that matters: no write blocks (no deadline
-// is ever missed), the slow consumer is dropped, and the gateway keeps serving
-// new clients. Messages persisted before the drop stay recoverable through
-// PULL, which is the Phase 2 fallback for a missed realtime push.
+// What is asserted is the property that matters: no write blocks (no deadline is
+// ever missed), the slow consumer is dropped by the engine's push, and the
+// gateway keeps serving new clients. Messages persisted before the drop stay
+// recoverable through PULL, which is the Phase 2 fallback for a missed push.
 func TestSlowConsumerDoesNotBlockSender(t *testing.T) {
 	f := startGatewayWithConfig(t, config.ServerConfig{
 		SendQueueSize:  1,
@@ -586,9 +593,18 @@ func TestSlowConsumerDoesNotBlockSender(t *testing.T) {
 	}
 	t.Logf("sent 50 SENDs in %s, %d write errors (gateway closed a saturated connection)", elapsed, writeErrs)
 
+	// The engine now pushes 50 deliveries into a queue that holds one frame, so
+	// the transport drops the session instead of blocking.
+	flushPipeline(t, f)
 	waitFor(t, 3*time.Second, func() bool {
 		return f.sessions.FindByDevice("dave", "lazy") == nil
 	}, "slow consumer session to be dropped")
+
+	// The undelivered rows stay recoverable.
+	pending := mustCount(t, f, "SELECT count(*) FROM deliveries WHERE state IN (0, 1)")
+	if pending == 0 {
+		t.Fatal("deliveries count = 0, want the messages to stay recoverable through PULL")
+	}
 
 	// The gateway is still healthy: a fresh client can log in and get an echo.
 	fresh, _ := loginOK(t, f, "frank", "pc")

@@ -104,7 +104,7 @@ func openTestStoreWithRetry(t *testing.T, retryBase time.Duration) *store.Store 
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatalf("store.Migrate() error = %v", err)
 	}
-	if _, err := st.DB().ExecContext(ctx, "TRUNCATE deliveries, messages, endpoints RESTART IDENTITY CASCADE"); err != nil {
+	if _, err := st.DB().ExecContext(ctx, "TRUNCATE deliveries, messages, endpoints, outbox RESTART IDENTITY CASCADE"); err != nil {
 		t.Fatalf("truncate tables: %v", err)
 	}
 	return st

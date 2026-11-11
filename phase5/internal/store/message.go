@@ -5,78 +5,82 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
-// AcceptMessage persists one logical message together with all delivery rows
-// in a single statement (implicit transaction). When (from_user, client_msg_id)
-// already exists the original message ID is returned with Duplicate set and
-// nothing is written: neither the original message nor its deliveries are
-// touched.
+// AcceptMessage persists one logical message, the resolved explicit endpoint
+// (if any) and its outbox event in a single transaction. No delivery rows are
+// written: the fan-out worker creates them after the event is published.
+//
+// When (tenant_id, from_user, client_msg_id) already exists the original
+// message ID is returned with Duplicate set and nothing is written.
 func (s *Store) AcceptMessage(ctx context.Context, req AcceptRequest) (AcceptResult, error) {
-	if len(req.Endpoints) == 0 {
-		return AcceptResult{}, ErrNoRecipients
+	tenant := strings.TrimSpace(req.TenantID)
+	if tenant == "" {
+		tenant = DefaultTenant
 	}
 	payload := req.Payload
 	if payload == nil {
 		payload = []byte{}
 	}
-
-	// Deduplicate the recipient list: the statement below inserts one delivery
-	// row per element of the three arrays.
-	users := make([]string, 0, len(req.Endpoints))
-	devices := make([]string, 0, len(req.Endpoints))
-	online := make([]bool, 0, len(req.Endpoints))
-	seen := make(map[Endpoint]struct{}, len(req.Endpoints))
-	for _, ep := range req.Endpoints {
-		if _, ok := seen[ep]; ok {
-			continue
-		}
-		seen[ep] = struct{}{}
-		users = append(users, ep.UserID)
-		devices = append(devices, ep.DeviceID)
-		online = append(online, req.Online[ep])
+	if req.OutboxTopic == "" || req.OutboxKey == "" || req.OutboxPayload == nil {
+		return AcceptResult{}, errors.New("store: accept message: outbox event is required")
 	}
-	base, _ := s.retrySeconds()
 
-	// One statement keeps the message and its deliveries atomic without the
-	// BEGIN/COMMIT round trips: on a busy gateway those round trips, not the
-	// SQL itself, dominate the per-message cost.
-	var messageID uint64
-	err := s.db.QueryRowContext(ctx, `
-WITH msg AS (
-    INSERT INTO messages (client_msg_id, from_user, from_device, target_type, target, payload, expire_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    ON CONFLICT (from_user, client_msg_id) DO NOTHING
-    RETURNING id
-), created AS (
-    INSERT INTO deliveries (message_id, user_id, device_id, state, attempts, next_retry_at)
-    SELECT msg.id, u.user_id, u.device_id,
-           CASE WHEN u.online THEN 1 ELSE 0 END,
-           CASE WHEN u.online THEN 1 ELSE 0 END,
-           CASE WHEN u.online THEN now() + make_interval(secs => $8) ELSE NULL END
-    FROM msg
-    CROSS JOIN unnest($9::text[], $10::text[], $11::boolean[]) AS u(user_id, device_id, online)
-    ON CONFLICT (message_id, user_id, device_id) DO NOTHING
-    RETURNING 1
-)
-SELECT id FROM msg`,
-		int64(req.ClientMsgID), req.FromUser, req.FromDevice, int16(req.TargetType),
-		req.Target, payload, req.ExpireAt, base, users, devices, online).Scan(&messageID)
-	if errors.Is(err, sql.ErrNoRows) {
-		// The unique key already exists: report the original message ID without
-		// touching the stored message or its deliveries.
-		if err := s.db.QueryRowContext(ctx, `
-SELECT id FROM messages WHERE from_user = $1 AND client_msg_id = $2`,
-			req.FromUser, int64(req.ClientMsgID)).Scan(&messageID); err != nil {
-			return AcceptResult{}, fmt.Errorf("store: accept message: select existing message: %w", err)
+	var (
+		messageID uint64
+		duplicate bool
+	)
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx, `
+INSERT INTO messages (tenant_id, client_msg_id, from_user, from_device, target_type, target, payload, expire_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (tenant_id, from_user, client_msg_id) DO NOTHING
+RETURNING id`,
+			tenant, int64(req.ClientMsgID), req.FromUser, req.FromDevice, int16(req.TargetType),
+			req.Target, payload, req.ExpireAt).Scan(&messageID)
+		if errors.Is(err, sql.ErrNoRows) {
+			duplicate = true
+			if err := tx.QueryRowContext(ctx, `
+SELECT id FROM messages
+WHERE tenant_id = $1 AND from_user = $2 AND client_msg_id = $3`,
+				tenant, req.FromUser, int64(req.ClientMsgID)).Scan(&messageID); err != nil {
+				return fmt.Errorf("select existing message: %w", err)
+			}
+			return nil
 		}
-		return AcceptResult{MessageID: messageID, Duplicate: true}, nil
-	}
+		if err != nil {
+			return fmt.Errorf("insert message: %w", err)
+		}
+
+		// An explicitly addressed endpoint must exist in the endpoints table so
+		// PULL and the fan-out worker can find it even before a LOGIN.
+		if req.TargetUser != "" && req.TargetDevice != "" {
+			if _, err := tx.ExecContext(ctx, `
+INSERT INTO endpoints (user_id, device_id)
+VALUES ($1, $2)
+ON CONFLICT (user_id, device_id) DO NOTHING`, req.TargetUser, req.TargetDevice); err != nil {
+				return fmt.Errorf("insert endpoint: %w", err)
+			}
+		}
+
+		body, err := req.OutboxPayload(messageID)
+		if err != nil {
+			return fmt.Errorf("build outbox payload: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO outbox (topic, partition_key, payload)
+VALUES ($1, $2, $3::jsonb)`,
+			req.OutboxTopic, req.OutboxKey, string(body)); err != nil {
+			return fmt.Errorf("insert outbox: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
 		return AcceptResult{}, fmt.Errorf("store: accept message: %w", err)
 	}
-	return AcceptResult{MessageID: messageID}, nil
+	return AcceptResult{MessageID: messageID, Duplicate: duplicate}, nil
 }
 
 // ListExpiredMessages returns the IDs of messages whose expire_at has passed
@@ -108,12 +112,13 @@ LIMIT $2`, now, limit)
 }
 
 // ExpireMessage expires one message: every non-terminal delivery becomes
-// EXPIRED and the message itself becomes EXPIRED, in a single transaction.
+// EXPIRED with its lease cleared and the message itself becomes EXPIRED, in a
+// single transaction.
 func (s *Store) ExpireMessage(ctx context.Context, messageID uint64) error {
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `
 UPDATE deliveries
-SET state = 5, next_retry_at = NULL, updated_at = now()
+SET state = 5, next_retry_at = NULL, lease_until = NULL, worker_id = NULL, updated_at = now()
 WHERE message_id = $1 AND state IN (0, 1, 2)`, int64(messageID)); err != nil {
 			return fmt.Errorf("expire deliveries: %w", err)
 		}

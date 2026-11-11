@@ -221,13 +221,14 @@ func TestClusterSendToRemoteEndpointForwards(t *testing.T) {
 		t.Fatalf("UpsertEndpoint(bob/d0): %v", err)
 	}
 
-	alice, aliceAck := loginOK(t, f, "alice", "phone")
+	alice, _ := loginOK(t, f, "alice", "phone")
 
 	payload := []byte("remote payload")
 	ack := alice.sendRouteExpectAck(t, 61, protocol.TargetUser, "bob", payload)
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED (message %q)", ack.Status, ack.Message)
 	}
+	flushPipeline(t, f)
 
 	waitFor(t, 2*time.Second, func() bool { return len(fwd.forwarded()) == 1 }, "one forward")
 	got := fwd.forwarded()[0]
@@ -240,8 +241,10 @@ func TestClusterSendToRemoteEndpointForwards(t *testing.T) {
 	if got.body.UserID != "bob" || got.body.DeviceID != "d0" {
 		t.Errorf("forward body = %+v, want bob/d0", got.body)
 	}
-	if got.body.FromSessionID != aliceAck.SessionID {
-		t.Errorf("forward from_session_id = %d, want %d", got.body.FromSessionID, aliceAck.SessionID)
+	// The delivery worker owns no client connection, so the forwarded body has
+	// no originating session id: it is a server-side push, not a relay.
+	if got.body.FromSessionID != 0 {
+		t.Errorf("forward from_session_id = %d, want 0", got.body.FromSessionID)
 	}
 	if got.body.FromUser != "alice" || got.body.FromDevice != "phone" {
 		t.Errorf("forward from = %s/%s, want alice/phone", got.body.FromUser, got.body.FromDevice)
@@ -388,6 +391,7 @@ func TestClusterForwardFailureLeavesDeliveryRetryable(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED (message %q)", ack.Status, ack.Message)
 	}
+	flushPipeline(t, f)
 	waitFor(t, 2*time.Second, func() bool { return len(fwd.forwarded()) == 1 }, "a failed forward attempt")
 
 	var (
@@ -400,11 +404,14 @@ func TestClusterForwardFailureLeavesDeliveryRetryable(t *testing.T) {
 		int64(ack.MessageID)).Scan(&state, &attempts, &next); err != nil {
 		t.Fatalf("select delivery: %v", err)
 	}
-	if store.DeliveryState(state) != store.DeliverySent {
-		t.Errorf("delivery state = %d, want SENT (%d)", state, store.DeliverySent)
+	// A failed forward is a failed push: the row stays recoverable (PENDING) with
+	// a retry schedule and one attempt consumed, so the engine backs off instead
+	// of hammering a dead node.
+	if store.DeliveryState(state) != store.DeliveryPending {
+		t.Errorf("delivery state = %d, want PENDING (%d)", state, store.DeliveryPending)
 	}
 	if attempts != 1 {
-		t.Errorf("delivery attempts = %d, want 1 (a failed forward must not consume a retry)", attempts)
+		t.Errorf("delivery attempts = %d, want 1", attempts)
 	}
 	if !next.Valid {
 		t.Error("next_retry_at is NULL, want a retry schedule")

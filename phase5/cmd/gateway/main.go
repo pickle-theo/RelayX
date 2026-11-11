@@ -16,12 +16,15 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
+	"sync"
 	"time"
 
+	"relayx/phase5/internal/broker"
 	"relayx/phase5/internal/cluster"
 	"relayx/phase5/internal/config"
-	"relayx/phase5/internal/delivery"
 	"relayx/phase5/internal/gateway"
+	"relayx/phase5/internal/outbox"
 	"relayx/phase5/internal/protocol"
 	"relayx/phase5/internal/registry"
 	"relayx/phase5/internal/session"
@@ -83,18 +86,12 @@ func run(cfg config.ServerConfig, logger *slog.Logger) error {
 		MessageTTL:   cfg.MessageTTL,
 		PullLimit:    cfg.PullLimit,
 		PullMaxLimit: cfg.PullMaxLimit,
-	}
-	workerCfg := delivery.Config{
-		Interval:    cfg.RetryInterval,
-		MaxAttempts: cfg.RetryMaxAttempts,
-		RetryBatch:  cfg.RetryBatch,
-		ExpireBatch: cfg.ExpireBatch,
+		TenantID:     cfg.TenantID,
 	}
 	if cl != nil {
 		handlerCfg.NodeID = cl.nodeID
 		handlerCfg.Registry = cl.reg
 		handlerCfg.Forwarder = cl.hub
-		workerCfg.Routes = cl.reg
 	}
 	handler := gateway.New(sessions, st, handlerCfg, logger)
 	if cl != nil {
@@ -104,15 +101,34 @@ func run(cfg config.ServerConfig, logger *slog.Logger) error {
 	srv := transport.New(cfg.Addr, cfg, handler.Handle, logger)
 	srv.SetOnClose(handler.OnConnClosed)
 
-	worker := delivery.NewWorker(st, sessions, delivery.NewDeliverer(sessions), workerCfg, logger)
-	worker.Start()
-	logger.Info("delivery worker started",
-		"interval", cfg.RetryInterval,
-		"max_attempts", cfg.RetryMaxAttempts)
-	defer func() {
-		worker.Stop()
-		logger.Info("delivery worker stopped")
-	}()
+	// Phase 5 no longer pushes deliveries from the connection goroutine and no
+	// longer retries them in-process: messages are accepted with an outbox row
+	// and the delivery worker drives every push.
+	stopRelay := func() {}
+	if cfg.KafkaBrokers != "" {
+		producer, err := broker.NewProducer(splitBrokers(cfg.KafkaBrokers))
+		if err != nil {
+			return err
+		}
+		relay := outbox.NewRelay(st, producer, cfg.OutboxBatch, cfg.OutboxInterval,
+			cfg.RetryBackoffBase, cfg.RetryBackoffMax, logger)
+		relayCtx, relayCancel := context.WithCancel(context.Background())
+		var relayWG sync.WaitGroup
+		relayWG.Add(1)
+		go func() {
+			defer relayWG.Done()
+			relay.Run(relayCtx)
+		}()
+		stopRelay = func() {
+			relayCancel()
+			relayWG.Wait()
+			if err := producer.Close(); err != nil {
+				logger.Warn("close kafka producer", "error", err)
+			}
+		}
+		logger.Info("outbox relay started", "brokers", cfg.KafkaBrokers)
+	}
+	defer stopRelay()
 
 	fmt.Printf("gateway listening on %s\n", srv.Addr())
 	logger.Info("gateway listening", "addr", srv.Addr())
@@ -120,7 +136,7 @@ func run(cfg config.ServerConfig, logger *slog.Logger) error {
 	stopStats := make(chan struct{})
 	defer close(stopStats)
 	if cfg.StatsInterval > 0 {
-		go statsLoop(cfg.StatsInterval, srv, sessions, handler, st, worker, cl, logger, stopStats)
+		go statsLoop(cfg.StatsInterval, srv, sessions, handler, st, cl, logger, stopStats)
 	}
 
 	serveErr := make(chan error, 1)
@@ -140,9 +156,9 @@ func run(cfg config.ServerConfig, logger *slog.Logger) error {
 		logger.Info("signal received, shutting down",
 			"signal", sig.String(), "active_connections", srv.ActiveConnections())
 
-		// Stop the worker before the server so no scan touches a closing
+		// Stop the relay before the server so no publish touches a closing
 		// connection pool.
-		worker.Stop()
+		stopRelay()
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
@@ -347,7 +363,7 @@ func startPprof(cfg config.ServerConfig, logger *slog.Logger) (func(), error) {
 
 // statsLoop logs gateway resource usage and reliable-delivery counters on a
 // fixed interval. It deliberately avoids a metrics endpoint.
-func statsLoop(interval time.Duration, srv *transport.Server, sessions *session.Manager, handler *gateway.Handler, st *store.Store, worker *delivery.Worker, cl *clusterRuntime, logger *slog.Logger, stop <-chan struct{}) {
+func statsLoop(interval time.Duration, srv *transport.Server, sessions *session.Manager, handler *gateway.Handler, st *store.Store, cl *clusterRuntime, logger *slog.Logger, stop <-chan struct{}) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -364,14 +380,19 @@ func statsLoop(interval time.Duration, srv *transport.Server, sessions *session.
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
 			accepted, duplicate := handler.Stats()
-			workerStats := worker.Stats()
 
 			pending := int64(-1)
+			outboxPending := int64(-1)
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			if n, err := st.CountPendingDeliveries(ctx); err != nil {
 				logger.Warn("gateway stats: count pending deliveries failed", "error", err)
 			} else {
 				pending = n
+			}
+			if n, err := st.CountPendingOutbox(ctx); err != nil {
+				logger.Warn("gateway stats: count pending outbox failed", "error", err)
+			} else {
+				outboxPending = n
 			}
 			cancel()
 
@@ -398,8 +419,7 @@ func statsLoop(interval time.Duration, srv *transport.Server, sessions *session.
 				"messages_accepted", accepted,
 				"messages_duplicate", duplicate,
 				"deliveries_pending", pending,
-				"deliveries_retried", workerStats.Retried,
-				"deliveries_expired", workerStats.Expired,
+				"outbox_pending", outboxPending,
 				"db_open_conns", st.DB().Stats().OpenConnections)
 		}
 	}
@@ -407,4 +427,16 @@ func statsLoop(interval time.Duration, srv *transport.Server, sessions *session.
 
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
+}
+
+// splitBrokers turns the comma-separated -kafka-brokers flag into addresses.
+func splitBrokers(raw string) []string {
+	parts := strings.Split(raw, ",")
+	brokers := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if broker := strings.TrimSpace(part); broker != "" {
+			brokers = append(brokers, broker)
+		}
+	}
+	return brokers
 }

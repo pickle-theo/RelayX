@@ -49,8 +49,7 @@ const (
 // DefaultTenant is used when a caller does not name a tenant.
 const DefaultTenant = "default"
 
-// ErrNoRecipients is returned by AcceptMessage when the caller resolved no
-// recipient endpoint; nothing is written to the database in that case.
+// ErrNoRecipients is returned when a caller resolved no recipient endpoint.
 var ErrNoRecipients = errors.New("store: no recipients")
 
 // Endpoint is one business user combined with one device.
@@ -59,10 +58,15 @@ type Endpoint struct {
 	DeviceID string
 }
 
-// AcceptRequest carries one SEND that must be persisted as a single
-// transaction. Endpoints is the recipient set resolved by the caller; it must
-// contain at least one element.
+// AcceptRequest is one message acceptance. The message row and its outbox row
+// are written in one transaction; no delivery rows are created here.
+//
+// TargetUser is resolved to concrete endpoints by the fan-out worker through
+// the endpoints table. TargetEndpoint cannot be resolved from the database
+// because the target is a node-local session id, so the caller resolves it and
+// passes TargetUser and TargetDevice.
 type AcceptRequest struct {
+	TenantID    string
 	ClientMsgID uint64
 	FromUser    string
 	FromDevice  string
@@ -70,17 +74,23 @@ type AcceptRequest struct {
 	Target      string
 	Payload     []byte
 	ExpireAt    time.Time
-	Endpoints   []Endpoint
-	// Online marks the endpoints that already have a live session when the
-	// message is accepted. Their delivery rows are inserted directly as SENT
-	// with attempts=1 and the first retry armed, so the realtime push needs no
-	// second write transaction. Endpoints missing from the map stay PENDING and
-	// are recovered through PULL.
-	Online map[Endpoint]bool
+
+	// TargetUser and TargetDevice are the resolved endpoint of a
+	// TargetEndpoint message. They are copied into the fan-out event and must
+	// be empty for a TargetUser message.
+	TargetUser   string
+	TargetDevice string
+
+	// OutboxTopic, OutboxKey and OutboxPayload describe the pre-encoded fan-out
+	// event written atomically with the message. OutboxPayload receives the
+	// freshly assigned message ID because the event must carry it.
+	OutboxTopic   string
+	OutboxKey     string
+	OutboxPayload func(messageID uint64) ([]byte, error)
 }
 
 // AcceptResult reports the platform message ID and whether the request was a
-// duplicate of an already accepted (from_user, client_msg_id) pair.
+// duplicate of an already accepted (tenant, from_user, client_msg_id) triple.
 type AcceptResult struct {
 	MessageID uint64
 	Duplicate bool

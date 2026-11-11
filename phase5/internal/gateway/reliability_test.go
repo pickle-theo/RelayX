@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"relayx/phase5/internal/broker"
 	"relayx/phase5/internal/config"
 	"relayx/phase5/internal/delivery"
+	"relayx/phase5/internal/engine"
 	"relayx/phase5/internal/protocol"
 	"relayx/phase5/internal/store"
 )
@@ -29,14 +31,93 @@ func seedMessages(t *testing.T, f *gatewayFixture, userID, deviceID string, payl
 			Target:      userID,
 			Payload:     payload,
 			ExpireAt:    time.Now().Add(time.Hour),
-			Endpoints:   []store.Endpoint{{UserID: userID, DeviceID: deviceID}},
+			OutboxTopic: "relayx.fanout.v1",
+			OutboxKey:   "default|" + userID,
+			OutboxPayload: func(messageID uint64) ([]byte, error) {
+				return broker.EncodeFanout(broker.FanoutEvent{
+					TenantID:   store.DefaultTenant,
+					MessageID:  messageID,
+					FromUser:   "alice",
+					FromDevice: "a0",
+					TargetType: int16(store.TargetUser),
+					Target:     userID,
+					Payload:    payload,
+					ExpireAt:   time.Now().Add(time.Hour),
+				})
+			},
 		})
 		if err != nil {
 			t.Fatalf("AcceptMessage(%d) error = %v", i, err)
 		}
+		// Phase 5 accepts without deliveries: seed them like the fan-out worker.
+		if _, err := f.store.InsertDeliveries(context.Background(), res.MessageID,
+			[]store.Endpoint{{UserID: userID, DeviceID: deviceID}}); err != nil {
+			t.Fatalf("InsertDeliveries(%d) error = %v", i, err)
+		}
 		ids[i] = res.MessageID
 	}
 	return ids
+}
+
+// flushPipeline replays the Phase 5 asynchronous path inside the test process:
+// every pending outbox event is expanded into deliveries and the delivery
+// engine then pushes whatever is due to the locally connected sessions.
+func flushPipeline(t *testing.T, f *gatewayFixture) {
+	t.Helper()
+	ctx := context.Background()
+
+	rows, err := f.store.DB().QueryContext(ctx, `SELECT payload FROM outbox WHERE state = 0 ORDER BY id`)
+	if err != nil {
+		t.Fatalf("select pending outbox: %v", err)
+	}
+	var bodies [][]byte
+	for rows.Next() {
+		var body []byte
+		if err := rows.Scan(&body); err != nil {
+			_ = rows.Close()
+			t.Fatalf("scan outbox: %v", err)
+		}
+		bodies = append(bodies, body)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("close outbox rows: %v", err)
+	}
+
+	for _, body := range bodies {
+		ev, err := broker.DecodeFanout(body)
+		if err != nil {
+			t.Fatalf("decode fan-out event: %v", err)
+		}
+		switch store.TargetType(ev.TargetType) {
+		case store.TargetEndpoint:
+			if _, err := f.store.InsertDeliveries(ctx, ev.MessageID,
+				[]store.Endpoint{{UserID: ev.TargetUser, DeviceID: ev.TargetDevice}}); err != nil {
+				t.Fatalf("fan-out endpoint message %d: %v", ev.MessageID, err)
+			}
+		case store.TargetUser:
+			endpoints, err := f.store.ListEndpoints(ctx, ev.Target)
+			if err != nil {
+				t.Fatalf("list endpoints of %s: %v", ev.Target, err)
+			}
+			if _, err := f.store.InsertDeliveries(ctx, ev.MessageID, endpoints); err != nil {
+				t.Fatalf("fan-out user message %d: %v", ev.MessageID, err)
+			}
+		}
+	}
+	if _, err := f.store.DB().ExecContext(ctx, `UPDATE outbox SET state = 1, published_at = now() WHERE state = 0`); err != nil {
+		t.Fatalf("mark outbox published: %v", err)
+	}
+
+	eng := engine.New(engine.Config{
+		WorkerID:    "test-worker",
+		Batch:       1000,
+		LeaseTTL:    time.Minute,
+		MaxAttempts: 5,
+		BackoffBase: time.Second,
+	}, f.store, f.sessions, delivery.NewDeliverer(f.sessions), f.handler.cfg.Registry, f.handler.cfg.Forwarder, nil)
+	if err := eng.RunOnce(ctx); err != nil {
+		t.Fatalf("engine RunOnce() error = %v", err)
+	}
 }
 
 // pullPage sends one PULL and reads DELIVER frames until PULL_DONE.
@@ -153,7 +234,7 @@ func sendConcurrent(c *testClient, msgID uint64, target string) duplicateSendRes
 func TestConcurrentDuplicateSendIsIdempotent(t *testing.T) {
 	f := startGateway(t)
 
-	bob, _ := loginOK(t, f, "bob", "d0")
+	loginOK(t, f, "bob", "d0")
 
 	const senders = 10
 	const msgID uint64 = 777
@@ -204,16 +285,18 @@ func TestConcurrentDuplicateSendIsIdempotent(t *testing.T) {
 	if n := mustCount(t, f, "SELECT count(*) FROM messages"); n != 1 {
 		t.Fatalf("messages count = %d, want 1", n)
 	}
-	if n := mustCount(t, f, "SELECT count(*) FROM deliveries"); n != 1 {
-		t.Fatalf("deliveries count = %d, want 1", n)
+	// Phase 5 SEND only persists the message and its outbox event.
+	if n := mustCount(t, f, "SELECT count(*) FROM deliveries"); n != 0 {
+		t.Fatalf("deliveries count = %d, want 0 (fan-out owns delivery rows)", n)
 	}
-
-	// Only the accepted SEND is pushed to the online device.
-	bob.expectDeliver(t, messageID)
+	if n := mustCount(t, f, "SELECT count(*) FROM outbox"); n != 1 {
+		t.Fatalf("outbox count = %d, want 1", n)
+	}
 }
 
-// TestRealtimeTwoLevelAck verifies the online path: a DELIVER pushed straight
-// from SEND can be acknowledged with RECEIPT_ACK and BUSINESS_ACK without PULL.
+// TestRealtimeTwoLevelAck verifies the online path: a DELIVER produced by the
+// delivery engine can be acknowledged with RECEIPT_ACK and BUSINESS_ACK without
+// PULL.
 func TestRealtimeTwoLevelAck(t *testing.T) {
 	f := startGateway(t)
 
@@ -224,12 +307,13 @@ func TestRealtimeTwoLevelAck(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED", ack.Status)
 	}
+	flushPipeline(t, f)
 	bob.expectDeliver(t, ack.MessageID)
 
-	// The realtime push must mark the delivery SENT so receipt ACKs apply.
-	waitFor(t, 2*time.Second, func() bool {
-		return deliveryState(t, f, ack.MessageID) == store.DeliverySent
-	}, "realtime delivery to become SENT")
+	// The engine push must mark the delivery SENT so receipt ACKs apply.
+	if got := deliveryState(t, f, ack.MessageID); got != store.DeliverySent {
+		t.Fatalf("delivery state = %d, want SENT", got)
+	}
 
 	sendReceiptAck(t, bob, 100, ack.MessageID)
 	waitFor(t, 2*time.Second, func() bool {
@@ -256,6 +340,7 @@ func TestRepeatedReceiptAckKeepsStateAndTimestamp(t *testing.T) {
 	alice, _ := loginOK(t, f, "alice", "phone")
 
 	ack := alice.sendRouteExpectAck(t, 6, protocol.TargetUser, "bob", []byte("ack me once"))
+	flushPipeline(t, f)
 	bob.expectDeliver(t, ack.MessageID)
 
 	sendReceiptAck(t, bob, 200, ack.MessageID)
@@ -429,31 +514,29 @@ func TestPullStopsWhenDeliverEnqueueFails(t *testing.T) {
 }
 
 // TestRetryRepushesAfterMissingAck verifies the ACK-loss path: the target keeps
-// the DELIVER unacknowledged and the worker re-pushes the same platform message
-// ID after the backoff, incrementing attempts.
+// the DELIVER unacknowledged, the lease releases, and the engine re-pushes the
+// same platform message ID once the backoff elapses, incrementing attempts.
 func TestRetryRepushesAfterMissingAck(t *testing.T) {
-	f := startGatewayWith(t, gatewayOptions{retryBase: 100 * time.Millisecond})
+	f := startGateway(t)
 
 	bob, _ := loginOK(t, f, "bob", "d0")
 	alice, _ := loginOK(t, f, "alice", "phone")
 
 	ack := alice.sendRouteExpectAck(t, 8, protocol.TargetUser, "bob", []byte("no ack"))
+	flushPipeline(t, f)
 	bob.expectDeliver(t, ack.MessageID)
 
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		due, err := f.store.DueRetries(context.Background(), time.Now(), 10)
-		if err == nil && len(due) == 1 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("delivery did not become due: %d rows, err=%v", len(due), err)
-		}
-		time.Sleep(10 * time.Millisecond)
+	if got := deliveryState(t, f, ack.MessageID); got != store.DeliverySent {
+		t.Fatalf("delivery state = %d, want SENT", got)
 	}
 
-	worker := delivery.NewWorker(f.store, f.sessions, delivery.NewDeliverer(f.sessions), delivery.Config{}, testLogger())
-	worker.RunOnce(context.Background())
+	// Make the retry due immediately instead of waiting for the backoff.
+	if _, err := f.store.DB().Exec(
+		`UPDATE deliveries SET next_retry_at = now() - interval '1 second' WHERE message_id = $1`,
+		int64(ack.MessageID)); err != nil {
+		t.Fatalf("force retry due: %v", err)
+	}
+	flushPipeline(t, f)
 
 	bob.expectDeliver(t, ack.MessageID)
 
@@ -464,9 +547,6 @@ func TestRetryRepushesAfterMissingAck(t *testing.T) {
 	}
 	if attempts != 2 {
 		t.Fatalf("attempts = %d, want 2", attempts)
-	}
-	if got := worker.Stats(); got.Retried != 1 {
-		t.Fatalf("worker Stats().Retried = %d, want 1", got.Retried)
 	}
 }
 
@@ -486,6 +566,7 @@ func TestMessageTTLExpiresDelivery(t *testing.T) {
 	if ack.Status != protocol.SendAckAccepted {
 		t.Fatalf("SEND_ACK status = %d, want ACCEPTED", ack.Status)
 	}
+	flushPipeline(t, f)
 
 	deadline := time.Now().Add(3 * time.Second)
 	for {
@@ -498,9 +579,7 @@ func TestMessageTTLExpiresDelivery(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-
-	worker := delivery.NewWorker(f.store, f.sessions, delivery.NewDeliverer(f.sessions), delivery.Config{}, testLogger())
-	worker.RunOnce(context.Background())
+	flushPipeline(t, f)
 
 	if got := messageState(t, f, ack.MessageID); got != store.MessageExpired {
 		t.Fatalf("message state = %d, want EXPIRED (%d)", got, store.MessageExpired)

@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"os"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func openTestStore(t *testing.T) *Store {
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
-	if _, err := st.DB().ExecContext(ctx, "TRUNCATE deliveries, messages, endpoints RESTART IDENTITY CASCADE"); err != nil {
+	if _, err := st.DB().ExecContext(ctx, "TRUNCATE deliveries, messages, endpoints, outbox RESTART IDENTITY CASCADE"); err != nil {
 		t.Fatalf("truncate tables: %v", err)
 	}
 	return st
@@ -110,14 +109,27 @@ func deliveryState(t *testing.T, st *Store, id uint64) (DeliveryState, int, sql.
 	return DeliveryState(state), attempts, next
 }
 
-func acceptMessage(t *testing.T, st *Store, req AcceptRequest) AcceptResult {
+// acceptMessage accepts a message and then simulates the fan-out worker by
+// inserting one delivery per endpoint. Acceptance itself never writes delivery
+// rows in Phase 5.
+func acceptMessage(t *testing.T, st *Store, req AcceptRequest, endpoints ...Endpoint) AcceptResult {
 	t.Helper()
 	if req.ExpireAt.IsZero() {
 		req.ExpireAt = time.Now().Add(time.Hour)
 	}
+	if req.OutboxTopic == "" {
+		req.OutboxTopic = "relayx.fanout.v1"
+		req.OutboxKey = "default|target"
+		req.OutboxPayload = func(uint64) ([]byte, error) { return []byte(`{"version":1}`), nil }
+	}
 	res, err := st.AcceptMessage(context.Background(), req)
 	if err != nil {
 		t.Fatalf("AcceptMessage() error = %v", err)
+	}
+	if len(endpoints) > 0 {
+		if _, err := st.InsertDeliveries(context.Background(), res.MessageID, endpoints); err != nil {
+			t.Fatalf("InsertDeliveries() error = %v", err)
+		}
 	}
 	return res
 }
@@ -132,12 +144,11 @@ func TestAcceptMessageIdempotent(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("hello"),
-		Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
 	}
-	first := acceptMessage(t, st, req)
+	first := acceptMessage(t, st, req, Endpoint{UserID: "bob", DeviceID: "d0"})
 
 	req.Payload = []byte("different payload")
-	second := acceptMessage(t, st, req)
+	second := acceptMessage(t, st, req, Endpoint{UserID: "bob", DeviceID: "d0"})
 
 	if first.Duplicate || first.MessageID == 0 {
 		t.Fatalf("first AcceptMessage() = %+v, want new message", first)
@@ -154,6 +165,9 @@ func TestAcceptMessageIdempotent(t *testing.T) {
 	if got := mustCount(t, st, "SELECT count(*) FROM deliveries"); got != 1 {
 		t.Fatalf("deliveries count = %d, want 1", got)
 	}
+	if got := mustCount(t, st, "SELECT count(*) FROM outbox"); got != 1 {
+		t.Fatalf("outbox count = %d, want 1 (a duplicate must not enqueue another event)", got)
+	}
 
 	var payload []byte
 	if err := st.DB().QueryRow("SELECT payload FROM messages WHERE id = $1", int64(first.MessageID)).Scan(&payload); err != nil {
@@ -164,7 +178,7 @@ func TestAcceptMessageIdempotent(t *testing.T) {
 	}
 }
 
-func TestAcceptMessageRequiresRecipients(t *testing.T) {
+func TestAcceptMessageRequiresOutboxEvent(t *testing.T) {
 	st := openTestStore(t)
 
 	_, err := st.AcceptMessage(context.Background(), AcceptRequest{
@@ -172,18 +186,78 @@ func TestAcceptMessageRequiresRecipients(t *testing.T) {
 		FromUser:    "alice",
 		FromDevice:  "d0",
 		TargetType:  TargetUser,
-		Target:      "nobody",
+		Target:      "bob",
 		Payload:     []byte("x"),
 		ExpireAt:    time.Now().Add(time.Hour),
 	})
-	if !errors.Is(err, ErrNoRecipients) {
-		t.Fatalf("AcceptMessage() error = %v, want ErrNoRecipients", err)
+	if err == nil {
+		t.Fatal("AcceptMessage() error = nil, want a missing-outbox error")
 	}
 	if got := mustCount(t, st, "SELECT count(*) FROM messages"); got != 0 {
 		t.Fatalf("messages count = %d, want 0", got)
 	}
+	if got := mustCount(t, st, "SELECT count(*) FROM outbox"); got != 0 {
+		t.Fatalf("outbox count = %d, want 0", got)
+	}
+}
+
+func TestAcceptMessageWritesMessageAndOutboxOnly(t *testing.T) {
+	st := openTestStore(t)
+
+	res := acceptMessage(t, st, AcceptRequest{
+		ClientMsgID: 12,
+		FromUser:    "alice",
+		FromDevice:  "d0",
+		TargetType:  TargetUser,
+		Target:      "bob",
+		Payload:     []byte("outbox-only"),
+	})
+	if res.Duplicate {
+		t.Fatalf("AcceptMessage() = %+v, want Duplicate=false", res)
+	}
+
+	// Acceptance writes no delivery rows: the fan-out worker owns them.
 	if got := mustCount(t, st, "SELECT count(*) FROM deliveries"); got != 0 {
 		t.Fatalf("deliveries count = %d, want 0", got)
+	}
+	var (
+		topic, key string
+		state      int16
+	)
+	if err := st.DB().QueryRow(`SELECT topic, partition_key, state FROM outbox`).Scan(&topic, &key, &state); err != nil {
+		t.Fatalf("select outbox: %v", err)
+	}
+	if topic != "relayx.fanout.v1" || key != "default|target" || state != int16(OutboxPending) {
+		t.Fatalf("outbox row = %s/%s/%d, want relayx.fanout.v1/default|target/pending", topic, key, state)
+	}
+}
+
+func TestAcceptMessageRequiresTenantIsolation(t *testing.T) {
+	st := openTestStore(t)
+
+	req := AcceptRequest{
+		TenantID:    "tenant-a",
+		ClientMsgID: 99,
+		FromUser:    "alice",
+		FromDevice:  "d0",
+		TargetType:  TargetUser,
+		Target:      "bob",
+		Payload:     []byte("a"),
+	}
+	first := acceptMessage(t, st, req)
+
+	second := acceptMessage(t, st, req)
+	if second.MessageID != first.MessageID {
+		t.Fatalf("same tenant duplicate ID = %d, want %d", second.MessageID, first.MessageID)
+	}
+
+	req.TenantID = "tenant-b"
+	third := acceptMessage(t, st, req)
+	if third.MessageID == first.MessageID {
+		t.Fatal("different tenant reused the message ID, want a separate message")
+	}
+	if got := mustCount(t, st, "SELECT count(*) FROM messages"); got != 2 {
+		t.Fatalf("messages count = %d, want 2", got)
 	}
 }
 
@@ -198,17 +272,27 @@ func TestAcceptMessageDedupesEndpointsAndFansOut(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("fan-out"),
-		Endpoints: []Endpoint{
-			{UserID: "bob", DeviceID: "d0"},
-			{UserID: "bob", DeviceID: "d0"},
-			{UserID: "bob", DeviceID: "d1"},
-		},
-	})
+	}, []Endpoint{
+		{UserID: "bob", DeviceID: "d0"},
+		{UserID: "bob", DeviceID: "d0"},
+		{UserID: "bob", DeviceID: "d1"},
+	}...)
 	if res.Duplicate {
 		t.Fatalf("AcceptMessage() = %+v, want Duplicate=false", res)
 	}
 	if got := mustCount(t, st, "SELECT count(*) FROM deliveries WHERE message_id = $1", int64(res.MessageID)); got != 2 {
 		t.Fatalf("delivery rows = %d, want 2", got)
+	}
+
+	// A redelivered fan-out event must not duplicate rows.
+	if _, err := st.InsertDeliveries(ctx, res.MessageID, []Endpoint{
+		{UserID: "bob", DeviceID: "d0"},
+		{UserID: "bob", DeviceID: "d1"},
+	}); err != nil {
+		t.Fatalf("repeated InsertDeliveries() error = %v", err)
+	}
+	if got := mustCount(t, st, "SELECT count(*) FROM deliveries WHERE message_id = $1", int64(res.MessageID)); got != 2 {
+		t.Fatalf("delivery rows after redelivery = %d, want 2", got)
 	}
 
 	items, hasMore, err := st.PullPending(ctx, "bob", "d0", 0, 10)
@@ -261,8 +345,7 @@ func TestReceiptAckConditionalAndIdempotent(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("ack-me"),
-		Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
-	})
+	}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 	items, _, err := st.PullPending(ctx, "bob", "d0", 0, 10)
 	if err != nil || len(items) != 1 {
 		t.Fatalf("PullPending() = %d items, err = %v", len(items), err)
@@ -332,11 +415,10 @@ func TestBusinessAckJumpsFromSentAndAggregates(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("two devices"),
-		Endpoints: []Endpoint{
-			{UserID: "bob", DeviceID: "d0"},
-			{UserID: "bob", DeviceID: "d1"},
-		},
-	})
+	}, []Endpoint{
+		{UserID: "bob", DeviceID: "d0"},
+		{UserID: "bob", DeviceID: "d1"},
+	}...)
 
 	if _, _, err := st.PullPending(ctx, "bob", "d0", 0, 10); err != nil {
 		t.Fatalf("PullPending(d0) error = %v", err)
@@ -402,8 +484,7 @@ func TestPullPendingCursorPagination(t *testing.T) {
 			TargetType:  TargetUser,
 			Target:      "bob",
 			Payload:     []byte{byte(i)},
-			Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
-		})
+		}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 	}
 
 	wants := []struct {
@@ -458,8 +539,7 @@ func TestPullPendingMarksSentAndSchedulesRetry(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("retry"),
-		Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
-	})
+	}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 
 	items, _, err := st.PullPending(ctx, "bob", "d0", 0, 10)
 	if err != nil || len(items) != 1 {
@@ -533,11 +613,10 @@ func TestMarkDeliveryFailedAggregates(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("fail"),
-		Endpoints: []Endpoint{
-			{UserID: "bob", DeviceID: "d0"},
-			{UserID: "bob", DeviceID: "d1"},
-		},
-	})
+	}, []Endpoint{
+		{UserID: "bob", DeviceID: "d0"},
+		{UserID: "bob", DeviceID: "d1"},
+	}...)
 
 	items, _, err := st.PullPending(ctx, "bob", "d0", 0, 10)
 	if err != nil || len(items) != 1 {
@@ -585,8 +664,7 @@ func TestMarkDeliverySentOnlyMovesPending(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("realtime"),
-		Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
-	})
+	}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 	var deliveryID uint64
 	if err := st.DB().QueryRow(
 		"SELECT id FROM deliveries WHERE message_id = $1", int64(res.MessageID)).Scan(&deliveryID); err != nil {
@@ -634,8 +712,7 @@ func TestReopenRecoversAcceptedMessage(t *testing.T) {
 		TargetType:  TargetUser,
 		Target:      "bob",
 		Payload:     []byte("survives restart"),
-		Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
-	})
+	}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 	if res.MessageID == 0 {
 		t.Fatal("AcceptMessage() message ID = 0")
 	}
@@ -677,8 +754,7 @@ func TestExpireMessageHidesFromPullAndRetry(t *testing.T) {
 		Target:      "bob",
 		Payload:     []byte("ttl"),
 		ExpireAt:    time.Now().Add(-time.Minute),
-		Endpoints:   []Endpoint{{UserID: "bob", DeviceID: "d0"}},
-	})
+	}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 
 	expired, err := st.ListExpiredMessages(ctx, time.Now(), 100)
 	if err != nil {
