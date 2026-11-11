@@ -54,13 +54,16 @@ type Handler interface {
 type Config struct {
 	NodeID        string
 	ListenAddr    string // internal listen address, e.g. 127.0.0.1:9100
-	AdvertiseAddr string // written into NODE_HELLO; ListenAddr when empty
+	AdvertiseAddr string // written into NODE_HELLO; ListenAddr when empty, empty for dial-only hubs
 	MaxBody       int    // maximum accepted frame body, default 1 MiB
 	DialTimeout   time.Duration
 	WriteTimeout  time.Duration
 	QueueSize     int // frames queued per peer, default 256
 	QueueBytes    int // bytes queued per peer, default 4 MiB
-	Logger        *slog.Logger
+	// DialOnly skips the listener. The Phase 5 delivery worker has no inbound
+	// node traffic: it only dials the gateway that owns a session.
+	DialOnly bool
+	Logger   *slog.Logger
 }
 
 // Hub owns the node-to-node listener and the set of connected peers.
@@ -96,7 +99,7 @@ func NewHub(cfg Config) (*Hub, error) {
 	if len(cfg.NodeID) > protocol.MaxNodeIDLen {
 		return nil, fmt.Errorf("cluster: node id length %d exceeds limit %d", len(cfg.NodeID), protocol.MaxNodeIDLen)
 	}
-	if cfg.ListenAddr == "" {
+	if cfg.ListenAddr == "" && !cfg.DialOnly {
 		cfg.ListenAddr = "127.0.0.1:0"
 	}
 	if cfg.MaxBody <= 0 {
@@ -118,24 +121,32 @@ func NewHub(cfg Config) (*Hub, error) {
 		cfg.Logger = slog.Default()
 	}
 
-	ln, err := net.Listen("tcp", cfg.ListenAddr)
-	if err != nil {
-		return nil, fmt.Errorf("cluster: listen on %s: %w", cfg.ListenAddr, err)
+	var ln net.Listener
+	if !cfg.DialOnly {
+		listener, err := net.Listen("tcp", cfg.ListenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("cluster: listen on %s: %w", cfg.ListenAddr, err)
+		}
+		ln = listener
 	}
 
 	h := &Hub{
 		cfg:        cfg,
 		logger:     cfg.Logger,
 		listener:   ln,
-		addr:       ln.Addr().String(),
 		peers:      make(map[string]*Peer),
 		nextDialAt: make(map[string]time.Time),
 		backoff:    make(map[string]time.Duration),
+	}
+	if ln != nil {
+		h.addr = ln.Addr().String()
 	}
 	h.advertiseAddr = cfg.AdvertiseAddr
 	if h.advertiseAddr == "" {
 		h.advertiseAddr = h.addr
 	}
+	// A dial-only hub does not listen, so it has no address to publish. The
+	// NODE_HELLO frame allows an empty advertise address for such nodes.
 	return h, nil
 }
 
@@ -161,7 +172,7 @@ func (h *Hub) Addr() string { return h.addr }
 func (h *Hub) Start() {
 	h.startOnce.Do(func() {
 		h.mu.Lock()
-		if h.closed.Load() {
+		if h.closed.Load() || h.listener == nil {
 			h.mu.Unlock()
 			return
 		}
@@ -190,8 +201,10 @@ func (h *Hub) Close() error {
 		}
 		h.mu.Unlock()
 
-		if err := h.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
-			h.closeErr = err
+		if h.listener != nil {
+			if err := h.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+				h.closeErr = err
+			}
 		}
 		for _, p := range peers {
 			p.close("hub closed")

@@ -43,7 +43,7 @@
 
 ## 4. 线格式
 
-所有字符串使用 `uint16` 大端长度前缀加原始字节，不做 UTF-8 校验；身份字段长度必须在 `[1, 64]`，node ID 在 `[1, 64]`，通告地址在 `[1, 128]`，ACK 文本在 `[0, 128]`。
+所有字符串使用 `uint16` 大端长度前缀加原始字节，不做 UTF-8 校验；身份字段长度必须在 `[1, 64]`，node ID 在 `[1, 64]`，通告地址在 `[0, 128]`，ACK 文本在 `[0, 128]`。
 
 ### 4.1 NODE_HELLO（0x10）
 
@@ -53,11 +53,12 @@
 | 1 | 2 | nodeIDLen | node ID 字节数 |
 | 3 | nodeIDLen | nodeID | 发送方节点标识 |
 | 3+nodeIDLen | 2 | addrLen | 通告地址字节数 |
-| 5+nodeIDLen | addrLen | advertiseAddr | 其它节点回拨时使用的 `host:port` |
+| 5+nodeIDLen | addrLen | advertiseAddr | 其它节点回拨时使用的 `host:port`；只拨号不监听的节点（Phase 5 的 delivery-worker）发送空地址 |
 
 - 帧头 `msgID` 固定为 0。
 - 接收方只解码，不校验 `protocolVersion`；当前版本协商仅有这个字段，没有拒绝逻辑。
 - 必须是连接上的第一帧；其它类型作为首帧会被关闭连接。
+- 通告地址允许为空：只拨号不监听的节点没有可回拨地址，空地址表示"不可回拨"。接收方不依赖该字段拨号，peer 地址取自已建立连接的远端地址。
 
 ### 4.2 NODE_HELLO_ACK（0x11）
 

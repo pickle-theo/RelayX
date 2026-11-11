@@ -18,6 +18,12 @@ func TestNodeHelloBodyRoundTrip(t *testing.T) {
 			hello: NodeHelloBody{ProtocolVersion: 0xFF, NodeID: strings.Repeat("n", MaxNodeIDLen), AdvertiseAddr: strings.Repeat("a", MaxNodeAddrLen)},
 		},
 		{name: "utf8", hello: NodeHelloBody{ProtocolVersion: 1, NodeID: "节点一", AdvertiseAddr: "主机:9100"}},
+		{
+			// A dial-only node (the Phase 5 delivery worker) has no address to
+			// publish and sends an empty advertise address.
+			name:  "dial only without advertise address",
+			hello: NodeHelloBody{ProtocolVersion: Version, NodeID: "w1"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -212,9 +218,6 @@ func TestAppendNodeBodyErrors(t *testing.T) {
 		{name: "node id too long", fn: func(dst []byte) ([]byte, error) {
 			return AppendNodeHelloBody(dst, &NodeHelloBody{NodeID: longID, AdvertiseAddr: "a"})
 		}, want: ErrBadIdentity},
-		{name: "empty addr", fn: func(dst []byte) ([]byte, error) {
-			return AppendNodeHelloBody(dst, &NodeHelloBody{NodeID: "n"})
-		}, want: ErrBadIdentity},
 		{name: "addr too long", fn: func(dst []byte) ([]byte, error) {
 			return AppendNodeHelloBody(dst, &NodeHelloBody{NodeID: "n", AdvertiseAddr: longAddr})
 		}, want: ErrBadIdentity},
@@ -296,7 +299,6 @@ func TestDecodeNodeHelloErrors(t *testing.T) {
 		{name: "node id over limit", body: []byte{1, 0x00, byte(MaxNodeIDLen + 1)}, want: ErrBadIdentity},
 		{name: "node id shorter than declared", body: valid[:1+2+2], want: ErrShortBody},
 		{name: "missing addr length", body: valid[:1+nodeIDLen], want: ErrShortBody},
-		{name: "zero addr length", body: bodyCat(valid[:1+nodeIDLen], 0x00, 0x00), want: ErrBadIdentity},
 		{name: "addr over limit", body: bodyCat(valid[:1+nodeIDLen], 0x00, byte(MaxNodeAddrLen+1)), want: ErrBadIdentity},
 		{name: "truncated addr by one byte", body: valid[:len(valid)-1], want: ErrShortBody},
 	}

@@ -72,6 +72,9 @@ type NodeKickBody struct {
 // AppendNodeHelloBody appends the wire representation of h to dst. The layout
 // is uint8 protocolVersion + uint16 nodeIDLen + nodeID + uint16 addrLen + addr.
 //
+// The advertise address may be empty: a dial-only node never accepts inbound
+// connections and therefore has no address to publish.
+//
 // On error the returned slice is dst unchanged.
 func AppendNodeHelloBody(dst []byte, h *NodeHelloBody) ([]byte, error) {
 	if h == nil {
@@ -80,7 +83,7 @@ func AppendNodeHelloBody(dst []byte, h *NodeHelloBody) ([]byte, error) {
 	if err := checkNodeString(h.NodeID, MaxNodeIDLen); err != nil {
 		return dst, err
 	}
-	if err := checkNodeString(h.AdvertiseAddr, MaxNodeAddrLen); err != nil {
+	if err := checkNodeAddr(h.AdvertiseAddr, MaxNodeAddrLen); err != nil {
 		return dst, err
 	}
 
@@ -99,7 +102,7 @@ func DecodeNodeHello(body []byte) (*NodeHelloBody, error) {
 	if err != nil {
 		return nil, err
 	}
-	addr, _, err := readSized(body, off, MaxNodeAddrLen, ErrBadIdentity)
+	addr, _, err := readNodeAddr(body, off, MaxNodeAddrLen)
 	if err != nil {
 		return nil, err
 	}
@@ -307,4 +310,31 @@ func checkNodeString(s string, limit int) error {
 		return fmt.Errorf("%w: length %d not in [1,%d]", ErrBadIdentity, len(s), limit)
 	}
 	return nil
+}
+
+// checkNodeAddr reports whether s is a valid advertise address of at most
+// limit bytes. Unlike a node ID the address may be empty, which marks a
+// dial-only node that cannot be called back.
+func checkNodeAddr(s string, limit int) error {
+	if len(s) > limit {
+		return fmt.Errorf("%w: length %d not in [0,%d]", ErrBadIdentity, len(s), limit)
+	}
+	return nil
+}
+
+// readNodeAddr reads the advertise address of a NODE_HELLO body. The address
+// may be empty, so it cannot use readSized.
+func readNodeAddr(body []byte, off, limit int) (string, int, error) {
+	if len(body)-off < 2 {
+		return "", 0, fmt.Errorf("%w: missing address length prefix", ErrShortBody)
+	}
+	n := int(binary.BigEndian.Uint16(body[off:]))
+	off += 2
+	if n > limit {
+		return "", 0, fmt.Errorf("%w: length %d not in [0,%d]", ErrBadIdentity, n, limit)
+	}
+	if len(body)-off < n {
+		return "", 0, fmt.Errorf("%w: want %d bytes at offset %d, have %d", ErrShortBody, n, off, len(body)-off)
+	}
+	return string(body[off : off+n]), off + n, nil
 }
