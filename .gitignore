@@ -1,0 +1,17 @@
+# Go 构建产物
+bin/
+*.exe
+*.exe~
+*.test
+
+# 性能分析与覆盖率产物
+cpu.out
+mem.out
+*.prof
+coverage.out
+
+# 编辑器与系统文件
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
