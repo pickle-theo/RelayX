@@ -38,6 +38,17 @@ const (
 	DeliveryFailed         DeliveryState = 6
 )
 
+// OutboxState is the publication state of one outbox row.
+type OutboxState int16
+
+const (
+	OutboxPending   OutboxState = 0
+	OutboxPublished OutboxState = 1
+)
+
+// DefaultTenant is used when a caller does not name a tenant.
+const DefaultTenant = "default"
+
 // ErrNoRecipients is returned by AcceptMessage when the caller resolved no
 // recipient endpoint; nothing is written to the database in that case.
 var ErrNoRecipients = errors.New("store: no recipients")
@@ -75,10 +86,26 @@ type AcceptResult struct {
 	Duplicate bool
 }
 
+// Message is one accepted logical message as read by the fan-out worker.
+type Message struct {
+	ID          uint64
+	TenantID    string
+	ClientMsgID uint64
+	FromUser    string
+	FromDevice  string
+	TargetType  TargetType
+	Target      string
+	Payload     []byte
+	State       MessageState
+	CreatedAt   time.Time
+	ExpireAt    time.Time
+}
+
 // Delivery is one delivery row joined with its logical message.
 type Delivery struct {
 	ID         uint64
 	MessageID  uint64
+	TenantID   string
 	UserID     string
 	DeviceID   string
 	FromUser   string
@@ -88,4 +115,22 @@ type Delivery struct {
 	Attempts   int
 	CreatedAt  time.Time
 	ExpireAt   time.Time
+}
+
+// Tenant is the per-tenant delivery quota. A zero RatePerSec or Burst means
+// "unlimited"; a zero MaxInflight means "fall back to the worker default".
+type Tenant struct {
+	ID          string
+	RatePerSec  int
+	Burst       int
+	MaxInflight int
+}
+
+// OutboxEvent is one pending event row claimed by the relay.
+type OutboxEvent struct {
+	ID           uint64
+	Topic        string
+	PartitionKey string
+	Payload      []byte
+	Attempts     int
 }
