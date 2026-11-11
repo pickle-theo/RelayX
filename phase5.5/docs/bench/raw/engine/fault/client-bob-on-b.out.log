@@ -1,0 +1,11 @@
+logged in as bob/phone session=1
+connected to 127.0.0.1:9001 as bob
+echo msg_id=1 body=bob#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=2 body=bob#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=3 body=bob#3 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=4 body=bob#4 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=5 body=bob#5 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=6 body=bob#6 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=7 body=bob#7 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=8 body=bob#8 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+server closed connection

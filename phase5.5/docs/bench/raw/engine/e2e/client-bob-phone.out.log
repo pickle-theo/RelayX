@@ -1,0 +1,5 @@
+logged in as bob/phone session=1
+connected to 127.0.0.1:9000 as bob
+pull_done count=0 cursor=0 has_more=false
+deliver from=alice/web message_id=1 body=phase5-e2e-payload
+echo msg_id=1 body=bob#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
