@@ -13,16 +13,24 @@ import (
 // reached, and its lease is absent or expired. FOR UPDATE SKIP LOCKED lets
 // several workers scan concurrently without claiming the same row.
 //
+// The shard is a half-open virtual shard interval [shardStart, shardEnd). The
+// interval comes from the online shard assignment, so the worker set can grow
+// or shrink without a restart and without moving rows.
+//
+// Every time comparison happens inside PostgreSQL, so the database clock is the
+// only arbiter of a lease. A worker with a skewed clock can neither steal a
+// live lease nor lose its own lease early.
+//
 // The returned rows carry the tenant and message fields the engine needs to
 // route and push them.
 func (s *Store) ClaimDueDeliveries(
 	ctx context.Context,
-	now time.Time,
-	shards, shardIndex, limit int,
+	shardStart, shardEnd int,
+	limit int,
 	workerID string,
 	leaseTTL time.Duration,
 ) ([]Delivery, error) {
-	if limit <= 0 || shards < 1 {
+	if limit <= 0 || shardEnd <= shardStart {
 		return nil, nil
 	}
 	rows, err := s.db.QueryContext(ctx, `
@@ -30,15 +38,17 @@ WITH due AS (
     SELECT d.id
     FROM deliveries d
     WHERE d.state IN (0, 1)
-      AND (d.next_retry_at IS NULL OR d.next_retry_at <= $1)
-      AND (d.lease_until IS NULL OR d.lease_until <= $1)
-      AND mod(d.id, $2) = $3
+      AND (d.next_retry_at IS NULL OR d.next_retry_at <= now())
+      AND (d.lease_until IS NULL OR d.lease_until <= now())
+      AND d.shard_id >= $1 AND d.shard_id < $2
     ORDER BY d.next_retry_at NULLS FIRST, d.id
-    LIMIT $4
+    LIMIT $3
     FOR UPDATE SKIP LOCKED
 ), leased AS (
     UPDATE deliveries d
-    SET lease_until = $5, worker_id = $6, updated_at = now()
+    SET lease_until = now() + make_interval(secs => $4::float8),
+        worker_id = $5,
+        updated_at = now()
     FROM due
     WHERE d.id = due.id
     RETURNING d.id, d.message_id, d.user_id, d.device_id, d.state, d.attempts
@@ -48,7 +58,7 @@ SELECT l.id, l.message_id, m.tenant_id, l.user_id, l.device_id, l.state, l.attem
 FROM leased l
 JOIN messages m ON m.id = l.message_id
 ORDER BY l.id`,
-		now, int64(shards), int64(shardIndex), limit, now.Add(leaseTTL), workerID)
+		shardStart, shardEnd, limit, leaseTTL.Seconds(), workerID)
 	if err != nil {
 		return nil, fmt.Errorf("store: claim due deliveries: %w", err)
 	}
@@ -72,17 +82,20 @@ ORDER BY l.id`,
 	return items, nil
 }
 
-// RenewLeases extends the lease of the given rows when they are still owned by
-// workerID. Rows whose lease was taken over are silently skipped.
-func (s *Store) RenewLeases(ctx context.Context, workerID string, ids []uint64, until time.Time) error {
+// RenewLeases extends the lease of the given rows by ttl when they are still
+// owned by workerID. Rows whose lease was taken over are silently skipped.
+//
+// The new deadline is computed by the database clock, so a renewal never
+// shortens or extends a lease because of a skewed worker clock.
+func (s *Store) RenewLeases(ctx context.Context, workerID string, ids []uint64, ttl time.Duration) error {
 	if len(ids) == 0 {
 		return nil
 	}
 	if _, err := s.db.ExecContext(ctx, `
 UPDATE deliveries
-SET lease_until = $1
-WHERE worker_id = $2 AND id = ANY($3::bigint[]) AND state IN (0, 1)`,
-		until, workerID, ids); err != nil {
+SET lease_until = now() + make_interval(secs => $3::float8)
+WHERE worker_id = $1 AND id = ANY($2::bigint[]) AND state IN (0, 1)`,
+		workerID, ids, ttl.Seconds()); err != nil {
 		return fmt.Errorf("store: renew leases: %w", err)
 	}
 	return nil
@@ -97,6 +110,24 @@ WHERE id = $1 AND worker_id = $2 AND state IN (0, 1)`, int64(id), workerID); err
 		return fmt.Errorf("store: release lease %d: %w", id, err)
 	}
 	return nil
+}
+
+// ReleaseAllLeases drops every lease owned by workerID and returns the number
+// of released rows. A graceful shutdown calls it so the next worker can pick
+// the rows up immediately instead of waiting for the lease to expire.
+func (s *Store) ReleaseAllLeases(ctx context.Context, workerID string) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `
+UPDATE deliveries
+SET lease_until = NULL, worker_id = NULL, updated_at = now()
+WHERE worker_id = $1 AND state IN (0, 1)`, workerID)
+	if err != nil {
+		return 0, fmt.Errorf("store: release all leases of %s: %w", workerID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("store: count released leases: %w", err)
+	}
+	return n, nil
 }
 
 // MarkDeliverySentLeased records a successful push of a leased delivery:
@@ -126,15 +157,20 @@ RETURNING attempts`, int64(id), workerID, base, max).Scan(&attempts)
 	return true, attempts, nil
 }
 
-// RetryLeased reschedules a leased delivery. When incrementAttempts is true the
-// attempt counter grows and a delivery that reaches maxAttempts becomes FAILED;
-// otherwise only the retry time moves and the state is preserved, which is how
-// no-route and tenant-throttled rows back off without consuming attempts.
+// RetryLeased reschedules a leased delivery by delay. When incrementAttempts is
+// true the attempt counter grows and a delivery that reaches maxAttempts
+// becomes FAILED; otherwise only the retry time moves and the state is
+// preserved, which is how no-route and tenant-throttled rows back off without
+// consuming attempts.
+//
+// The new retry time is computed by the database clock, so a skewed worker
+// clock cannot move a delivery into the past or push it too far into the
+// future.
 func (s *Store) RetryLeased(
 	ctx context.Context,
 	id uint64,
 	workerID string,
-	nextAt time.Time,
+	delay time.Duration,
 	incrementAttempts bool,
 	maxAttempts int,
 ) (failed bool, err error) {
@@ -146,13 +182,13 @@ SET state = CASE
         ELSE state
     END,
     attempts = attempts + CASE WHEN $4 THEN 1 ELSE 0 END,
-    next_retry_at = $3,
+    next_retry_at = now() + make_interval(secs => $3::float8),
     lease_until = NULL,
     worker_id = NULL,
     updated_at = now()
 WHERE id = $1 AND worker_id = $2 AND state IN (0, 1)
 RETURNING state`,
-		int64(id), workerID, nextAt, incrementAttempts, maxAttempts).Scan(&state)
+		int64(id), workerID, delay.Seconds(), incrementAttempts, maxAttempts).Scan(&state)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

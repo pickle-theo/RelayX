@@ -98,11 +98,11 @@ func (s *Store) InsertDeliveries(ctx context.Context, messageID uint64, endpoint
 		devices = append(devices, ep.DeviceID)
 	}
 	res, err := s.db.ExecContext(ctx, `
-INSERT INTO deliveries (message_id, user_id, device_id, state)
-SELECT $1, u.user_id, u.device_id, 0
+INSERT INTO deliveries (message_id, user_id, device_id, state, shard_id)
+SELECT $1, u.user_id, u.device_id, 0, mod($1::bigint, $4::bigint)::int
 FROM unnest($2::text[], $3::text[]) AS u(user_id, device_id)
 ON CONFLICT (message_id, user_id, device_id) DO NOTHING`,
-		int64(messageID), users, devices)
+		int64(messageID), users, devices, DefaultShardSpace)
 	if err != nil {
 		return 0, fmt.Errorf("store: insert deliveries for message %d: %w", messageID, err)
 	}

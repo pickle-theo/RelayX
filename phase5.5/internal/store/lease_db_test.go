@@ -191,7 +191,7 @@ func TestClaimDueDeliveriesShardFilter(t *testing.T) {
 	now := time.Now()
 	claims := map[int][]uint64{}
 	for shard := 0; shard < 2; shard++ {
-		items, err := st.ClaimDueDeliveries(ctx, now, 2, shard, 10, "worker-a", time.Minute)
+		items, err := st.ClaimDueDeliveries(ctx, shard*512, shard*512+512, 10, "worker-a", time.Minute)
 		if err != nil {
 			t.Fatalf("ClaimDueDeliveries(shard %d) error = %v", shard, err)
 		}
@@ -199,19 +199,10 @@ func TestClaimDueDeliveriesShardFilter(t *testing.T) {
 			claims[shard] = append(claims[shard], d.ID)
 		}
 	}
+	_ = now
 	total := len(claims[0]) + len(claims[1])
 	if total != 4 {
 		t.Fatalf("claimed %d deliveries across shards, want 4", total)
-	}
-	for _, id := range claims[0] {
-		if id%2 != 0 {
-			t.Fatalf("shard 0 claimed delivery %d with odd id", id)
-		}
-	}
-	for _, id := range claims[1] {
-		if id%2 != 1 {
-			t.Fatalf("shard 1 claimed delivery %d with even id", id)
-		}
 	}
 }
 
@@ -228,6 +219,7 @@ func TestClaimDueDeliveriesIsExclusive(t *testing.T) {
 	}
 
 	now := time.Now()
+	_ = now
 	var (
 		mu     sync.Mutex
 		seen   = map[uint64]int{}
@@ -240,7 +232,7 @@ func TestClaimDueDeliveriesIsExclusive(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			items, err := st.ClaimDueDeliveries(ctx, now, 1, 0, 10, "worker-"+itoa(uint64(worker)), time.Minute)
+			items, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-"+itoa(uint64(worker)), time.Minute)
 			if err != nil {
 				errsMu.Lock()
 				errs = append(errs, err)
@@ -274,18 +266,22 @@ func TestLeaseReclaimAfterExpiry(t *testing.T) {
 	}
 
 	now := time.Now()
-	claimed, err := st.ClaimDueDeliveries(ctx, now, 1, 0, 10, "worker-a", 50*time.Millisecond)
+	_ = now
+	claimed, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-a", 50*time.Millisecond)
 	if err != nil || len(claimed) != 1 {
 		t.Fatalf("first ClaimDueDeliveries() = %d rows, err=%v, want 1", len(claimed), err)
 	}
 
 	// The lease is still valid: another worker gets nothing.
-	if items, err := st.ClaimDueDeliveries(ctx, now, 1, 0, 10, "worker-b", 50*time.Millisecond); err != nil || len(items) != 0 {
+	if items, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-b", 50*time.Millisecond); err != nil || len(items) != 0 {
 		t.Fatalf("claim during valid lease = %d rows, err=%v, want 0", len(items), err)
 	}
 
-	// After the lease expires (worker crash), the row is reclaimable.
-	if items, err := st.ClaimDueDeliveries(ctx, now.Add(100*time.Millisecond), 1, 0, 10, "worker-b", time.Minute); err != nil || len(items) != 1 {
+	// After the lease expires (worker crash), the row is reclaimable. The lease
+	// deadline is computed by the database clock, so the test waits for it to
+	// pass instead of pretending to be in the future.
+	time.Sleep(120 * time.Millisecond)
+	if items, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-b", time.Minute); err != nil || len(items) != 1 {
 		t.Fatalf("claim after lease expiry = %d rows, err=%v, want 1", len(items), err)
 	}
 
@@ -306,12 +302,12 @@ func TestRetryLeasedDoesNotCountThrottlingAsAttempt(t *testing.T) {
 	if _, err := st.InsertDeliveries(ctx, msgID, []Endpoint{{UserID: "bob", DeviceID: "d0"}}); err != nil {
 		t.Fatalf("InsertDeliveries() error = %v", err)
 	}
-	items, err := st.ClaimDueDeliveries(ctx, time.Now(), 1, 0, 10, "worker-a", time.Minute)
+	items, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-a", time.Minute)
 	if err != nil || len(items) != 1 {
 		t.Fatalf("ClaimDueDeliveries() = %d rows, err=%v, want 1", len(items), err)
 	}
 
-	failed, err := st.RetryLeased(ctx, items[0].ID, "worker-a", time.Now().Add(time.Second), false, 5)
+	failed, err := st.RetryLeased(ctx, items[0].ID, "worker-a", time.Second, false, 5)
 	if err != nil {
 		t.Fatalf("RetryLeased() error = %v", err)
 	}
@@ -347,12 +343,12 @@ func TestRetryLeasedFailsAtMaxAttempts(t *testing.T) {
 	if _, err := st.DB().Exec(`UPDATE deliveries SET state = 1, attempts = 4`); err != nil {
 		t.Fatalf("seed attempts: %v", err)
 	}
-	items, err := st.ClaimDueDeliveries(ctx, time.Now(), 1, 0, 10, "worker-a", time.Minute)
+	items, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-a", time.Minute)
 	if err != nil || len(items) != 1 {
 		t.Fatalf("ClaimDueDeliveries() = %d rows, err=%v, want 1", len(items), err)
 	}
 
-	failed, err := st.RetryLeased(ctx, items[0].ID, "worker-a", time.Now(), true, 5)
+	failed, err := st.RetryLeased(ctx, items[0].ID, "worker-a", time.Second, true, 5)
 	if err != nil {
 		t.Fatalf("RetryLeased() error = %v", err)
 	}
@@ -375,7 +371,7 @@ func TestAckAndExpiryRaceOnlyOneTransition(t *testing.T) {
 	if _, err := st.InsertDeliveries(ctx, msgID, []Endpoint{{UserID: "bob", DeviceID: "d0"}}); err != nil {
 		t.Fatalf("InsertDeliveries() error = %v", err)
 	}
-	items, err := st.ClaimDueDeliveries(ctx, time.Now(), 1, 0, 10, "worker-a", time.Minute)
+	items, err := st.ClaimDueDeliveries(ctx, 0, DefaultShardSpace, 10, "worker-a", time.Minute)
 	if err != nil || len(items) != 1 {
 		t.Fatalf("ClaimDueDeliveries() = %d rows, err=%v, want 1", len(items), err)
 	}
@@ -453,5 +449,48 @@ func TestEndpointExists(t *testing.T) {
 	exists, err = st.EndpointExists(ctx, "bob", "ghost")
 	if err != nil || exists {
 		t.Fatalf("EndpointExists(bob/ghost) = (%v, %v), want false", exists, err)
+	}
+}
+
+func TestDeliveriesShareTheVirtualShardOfTheirMessage(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+	msgID := acceptFanout(t, st, "default", "alice", 1, TargetUser, "bob", "", "")
+	endpoints := []Endpoint{
+		{UserID: "bob", DeviceID: "d0"},
+		{UserID: "bob", DeviceID: "d1"},
+	}
+	if _, err := st.InsertDeliveries(ctx, msgID, endpoints); err != nil {
+		t.Fatalf("InsertDeliveries() error = %v", err)
+	}
+
+	var shardID int
+	if err := st.db.QueryRowContext(ctx,
+		`SELECT shard_id FROM deliveries WHERE message_id = $1 LIMIT 1`, int64(msgID)).Scan(&shardID); err != nil {
+		t.Fatalf("read shard_id: %v", err)
+	}
+
+	// The worker that owns the interval of that shard claims every delivery
+	// of the message, so all recipients of one message stay on one worker.
+	items, err := st.ClaimDueDeliveries(ctx, shardID, shardID+1, 10, "worker-a", time.Minute)
+	if err != nil {
+		t.Fatalf("ClaimDueDeliveries() error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("claimed %d deliveries, want 2", len(items))
+	}
+
+	// A worker that owns a different interval gets nothing.
+	other := (shardID + 1) % DefaultShardSpace
+	otherEnd := (shardID + 2) % DefaultShardSpace
+	if otherEnd <= other {
+		otherEnd = other + 1
+	}
+	items, err = st.ClaimDueDeliveries(ctx, other, otherEnd, 10, "worker-b", time.Minute)
+	if err != nil {
+		t.Fatalf("ClaimDueDeliveries() error = %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("a worker outside the shard claimed %d deliveries, want 0", len(items))
 	}
 }

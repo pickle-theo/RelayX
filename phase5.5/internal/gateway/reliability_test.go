@@ -114,7 +114,7 @@ func flushPipeline(t *testing.T, f *gatewayFixture) {
 		LeaseTTL:    time.Minute,
 		MaxAttempts: 5,
 		BackoffBase: time.Second,
-	}, f.store, f.sessions, delivery.NewDeliverer(f.sessions), f.handler.cfg.Registry, f.handler.cfg.Forwarder, nil)
+	}, f.store, f.sessions, delivery.NewDeliverer(f.sessions), f.handler.cfg.Registry, f.handler.cfg.Forwarder, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("engine RunOnce() error = %v", err)
 	}
@@ -570,7 +570,7 @@ func TestMessageTTLExpiresDelivery(t *testing.T) {
 
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		ids, err := f.store.ListExpiredMessages(context.Background(), time.Now(), 10)
+		ids, err := f.store.ListExpiredMessages(context.Background(), 10)
 		if err == nil && len(ids) == 1 {
 			break
 		}

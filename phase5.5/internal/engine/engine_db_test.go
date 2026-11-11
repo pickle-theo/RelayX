@@ -409,7 +409,7 @@ func TestEngineDeliversToLocalSession(t *testing.T) {
 	sess := sessions.Register(&session.Session{ID: sessions.NextSessionID(), UserID: "bob", DeviceID: "pc", Conn: conn})
 	defer sessions.Unregister(sess)
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute}, st, sessions,
-		delivery.NewDeliverer(sessions), nil, nil, nil)
+		delivery.NewDeliverer(sessions), nil, nil, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
@@ -443,7 +443,7 @@ func TestEngineNoRouteKeepsPendingWithoutAttempt(t *testing.T) {
 	}
 
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute, BackoffBase: time.Second}, st,
-		session.NewManager(), delivery.NewDeliverer(session.NewManager()), nil, nil, nil)
+		session.NewManager(), delivery.NewDeliverer(session.NewManager()), nil, nil, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
@@ -482,7 +482,7 @@ func TestEngineForwardsToAliveRemoteNode(t *testing.T) {
 	}
 	fwd := &fakeForwarder{}
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute}, st,
-		session.NewManager(), delivery.NewDeliverer(session.NewManager()), routes, fwd, nil)
+		session.NewManager(), delivery.NewDeliverer(session.NewManager()), routes, fwd, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
@@ -514,7 +514,7 @@ func TestEngineSkipsDeadNode(t *testing.T) {
 	}
 	fwd := &fakeForwarder{}
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute}, st,
-		session.NewManager(), delivery.NewDeliverer(session.NewManager()), routes, fwd, nil)
+		session.NewManager(), delivery.NewDeliverer(session.NewManager()), routes, fwd, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
@@ -546,7 +546,7 @@ func TestEngineFailedForwardConsumesAttempt(t *testing.T) {
 	}
 	fwd := &fakeForwarder{err: errors.New("connection refused")}
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute, MaxAttempts: 2}, st,
-		session.NewManager(), delivery.NewDeliverer(session.NewManager()), routes, fwd, nil)
+		session.NewManager(), delivery.NewDeliverer(session.NewManager()), routes, fwd, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
@@ -586,11 +586,12 @@ func TestEngineLeaseExcludesSecondWorker(t *testing.T) {
 	}
 
 	now := time.Now()
-	first, err := st.ClaimDueDeliveries(ctx, now, 1, 0, 10, "worker-a", time.Minute)
+	_ = now
+	first, err := st.ClaimDueDeliveries(ctx, 0, store.DefaultShardSpace, 10, "worker-a", time.Minute)
 	if err != nil || len(first) != 1 {
 		t.Fatalf("first claim = %d, err=%v", len(first), err)
 	}
-	second, err := st.ClaimDueDeliveries(ctx, now, 1, 0, 10, "worker-b", time.Minute)
+	second, err := st.ClaimDueDeliveries(ctx, 0, store.DefaultShardSpace, 10, "worker-b", time.Minute)
 	if err != nil || len(second) != 0 {
 		t.Fatalf("second claim = %d, err=%v, want 0", len(second), err)
 	}
@@ -620,7 +621,7 @@ func TestEngineTenantThrottleDoesNotConsumeAttempt(t *testing.T) {
 	}
 
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute, BackoffBase: time.Second},
-		st, sessions, delivery.NewDeliverer(sessions), nil, nil, limiter)
+		st, sessions, delivery.NewDeliverer(sessions), nil, nil, limiter, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
@@ -663,7 +664,7 @@ func TestEngineExpiresOverdueMessages(t *testing.T) {
 	}
 
 	eng := New(Config{WorkerID: "worker-a", Batch: 10, LeaseTTL: time.Minute}, st,
-		session.NewManager(), delivery.NewDeliverer(session.NewManager()), nil, nil, nil)
+		session.NewManager(), delivery.NewDeliverer(session.NewManager()), nil, nil, nil, nil)
 	if err := eng.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,8 +22,6 @@ import (
 // Config controls one delivery worker.
 type Config struct {
 	WorkerID     string
-	Shards       int
-	ShardIndex   int
 	Batch        int
 	LeaseTTL     time.Duration
 	ScanInterval time.Duration
@@ -31,6 +30,13 @@ type Config struct {
 	BackoffMax   time.Duration
 	ExpireBatch  int
 	Logger       *slog.Logger
+}
+
+// ShardProvider returns the virtual shard interval this worker owns. The
+// interval comes from the online shard assignment, so the worker set can grow
+// or shrink without a restart and without moving rows between workers.
+type ShardProvider interface {
+	ShardRange(ctx context.Context) (start, end int, err error)
 }
 
 // Stats is a point-in-time counter snapshot.
@@ -60,6 +66,7 @@ type Engine struct {
 	routes    registry.Registry
 	forwarder Forwarder
 	limiter   *tenant.Limiter
+	shards    ShardProvider
 
 	claimed   atomic.Int64
 	sent      atomic.Int64
@@ -69,12 +76,20 @@ type Engine struct {
 	expired   atomic.Int64
 	noRoute   atomic.Int64
 	released  atomic.Int64
+	renewed   atomic.Int64
+
+	stopping atomic.Bool
+	done     chan struct{}
+
+	mu       sync.Mutex
+	inFlight map[uint64]struct{}
 
 	wake chan struct{}
 }
 
 // New returns an engine. routes/forwarder may both be nil for a worker that can
-// only reach local sessions; limiter may be nil to skip tenant throttling.
+// only reach local sessions; limiter may be nil to skip tenant throttling;
+// shards may be nil to scan the whole virtual shard space.
 func New(
 	cfg Config,
 	st *store.Store,
@@ -83,15 +98,13 @@ func New(
 	routes registry.Registry,
 	forwarder Forwarder,
 	limiter *tenant.Limiter,
+	shards ShardProvider,
 ) *Engine {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
 	if cfg.Batch <= 0 {
 		cfg.Batch = 100
-	}
-	if cfg.Shards <= 0 {
-		cfg.Shards = 1
 	}
 	if cfg.LeaseTTL <= 0 {
 		cfg.LeaseTTL = 30 * time.Second
@@ -119,6 +132,9 @@ func New(
 		routes:    routes,
 		forwarder: forwarder,
 		limiter:   limiter,
+		shards:    shards,
+		done:      make(chan struct{}),
+		inFlight:  make(map[uint64]struct{}),
 		wake:      make(chan struct{}, 1),
 	}
 }
@@ -132,11 +148,23 @@ func (e *Engine) Notify() {
 	}
 }
 
-// Run scans until ctx is cancelled.
+// Run scans until ctx is cancelled or the engine is stopped. The lease
+// renewer and the expiry sweeper run in their own goroutines so a slow sweep
+// never delays a delivery.
 func (e *Engine) Run(ctx context.Context) error {
+	defer close(e.done)
+
+	renewCtx, cancelRenew := context.WithCancel(ctx)
+	defer cancelRenew()
+	go e.runLeaseRenewer(renewCtx)
+	go e.runExpirySweeper(renewCtx)
+
 	ticker := time.NewTicker(e.cfg.ScanInterval)
 	defer ticker.Stop()
 	for {
+		if e.stopping.Load() {
+			return nil
+		}
 		if err := e.RunOnce(ctx); err != nil && ctx.Err() == nil {
 			e.cfg.Logger.Warn("delivery scan failed", "error", err)
 		}
@@ -149,48 +177,54 @@ func (e *Engine) Run(ctx context.Context) error {
 	}
 }
 
-// RunOnce performs one claim-and-push cycle plus one expiry sweep.
+// RunOnce performs one claim-and-push cycle.
 func (e *Engine) RunOnce(ctx context.Context) error {
 	if e.store == nil {
 		return fmt.Errorf("engine: store unavailable")
 	}
-	now := time.Now()
-	items, err := e.store.ClaimDueDeliveries(ctx, now, e.cfg.Shards, e.cfg.ShardIndex, e.cfg.Batch, e.cfg.WorkerID, e.cfg.LeaseTTL)
+	start, end := 0, store.DefaultShardSpace
+	if e.shards != nil {
+		s, en, err := e.shards.ShardRange(ctx)
+		if err != nil {
+			// Without an interval this worker must not claim anything: the
+			// assignment is still being computed or the worker lost it. Waiting
+			// for the next scan is cheaper than scanning the whole space and
+			// competing with the workers that do own an interval.
+			e.cfg.Logger.Debug("shard range unavailable, skipping this scan", "error", err)
+			return nil
+		}
+		if en > s {
+			start, end = s, en
+		}
+	}
+	items, err := e.store.ClaimDueDeliveries(ctx, start, end, e.cfg.Batch, e.cfg.WorkerID, e.cfg.LeaseTTL)
 	if err != nil {
 		return err
 	}
 	e.claimed.Add(int64(len(items)))
 	for i := range items {
-		e.process(ctx, &items[i], now)
+		e.process(ctx, &items[i])
 	}
-	e.expireDue(ctx, now)
 	return nil
 }
 
 // process handles one leased delivery. Every branch clears or renews the lease
 // through a conditional update, so a row taken over by another worker is never
 // double-counted.
-func (e *Engine) process(ctx context.Context, d *store.Delivery, now time.Time) {
-	if !d.ExpireAt.After(now) {
-		// The expiry sweep owns the transition; releasing the lease keeps the
-		// row available if the sweep runs on another worker.
-		if err := e.store.ReleaseLease(ctx, d.ID, e.cfg.WorkerID); err != nil {
-			e.cfg.Logger.Warn("release expired delivery lease failed", "delivery_id", d.ID, "error", err)
-		}
-		e.released.Add(1)
-		return
-	}
+func (e *Engine) process(ctx context.Context, d *store.Delivery) {
+	e.track(d.ID)
+	defer e.untrack(d.ID)
 
 	if e.limiter != nil {
-		rel, retryAfter, ok, err := e.limiter.Acquire(ctx, d.TenantID, now)
+		rel, retryAfter, ok, err := e.limiter.Acquire(ctx, d.TenantID, time.Now())
 		if err != nil {
 			e.cfg.Logger.Warn("tenant quota lookup failed", "tenant_id", d.TenantID, "error", err)
-			e.retry(ctx, d, now.Add(e.cfg.BackoffBase), false)
+			e.retry(ctx, d, e.cfg.BackoffBase, false)
 			return
 		}
 		if !ok {
 			e.throttled.Add(1)
-			e.retry(ctx, d, now.Add(retryAfter), false)
+			e.retry(ctx, d, retryAfter, false)
 			return
 		}
 		defer rel()
@@ -213,9 +247,9 @@ func (e *Engine) process(ctx context.Context, d *store.Delivery, now time.Time) 
 			"user_id", d.UserID, "device_id", d.DeviceID, "attempts", attempts)
 	case pushNoRoute:
 		e.noRoute.Add(1)
-		e.retry(ctx, d, now.Add(e.cfg.BackoffBase), false)
+		e.retry(ctx, d, e.cfg.BackoffBase, false)
 	case pushFailed:
-		e.retry(ctx, d, now.Add(e.backoff(d.Attempts)), true)
+		e.retry(ctx, d, e.backoff(d.Attempts), true)
 	}
 }
 
@@ -282,8 +316,10 @@ func (e *Engine) push(ctx context.Context, d *store.Delivery) pushOutcome {
 	return pushSent
 }
 
-func (e *Engine) retry(ctx context.Context, d *store.Delivery, nextAt time.Time, increment bool) {
-	failed, err := e.store.RetryLeased(ctx, d.ID, e.cfg.WorkerID, nextAt, increment, e.cfg.MaxAttempts)
+// retry postpones a leased delivery by delay. The retry time is computed by
+// the database clock, so a skewed worker clock cannot move a row into the past.
+func (e *Engine) retry(ctx context.Context, d *store.Delivery, delay time.Duration, increment bool) {
+	failed, err := e.store.RetryLeased(ctx, d.ID, e.cfg.WorkerID, delay, increment, e.cfg.MaxAttempts)
 	if err != nil {
 		e.cfg.Logger.Warn("retry delivery failed", "delivery_id", d.ID, "error", err)
 		return
@@ -306,8 +342,29 @@ func (e *Engine) backoff(attempts int) time.Duration {
 	return d
 }
 
-func (e *Engine) expireDue(ctx context.Context, now time.Time) {
-	ids, err := e.store.ListExpiredMessages(ctx, now, e.cfg.ExpireBatch)
+// runExpirySweeper expires the messages whose TTL has passed. It runs in its
+// own goroutine so a large backlog of expired rows never delays a delivery.
+func (e *Engine) runExpirySweeper(ctx context.Context) {
+	interval := e.cfg.ScanInterval
+	if interval <= 0 {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			e.expireDue(ctx)
+		}
+	}
+}
+
+// expireDue expires the messages whose TTL has passed. The comparison happens
+// inside PostgreSQL, so the database clock decides what is expired.
+func (e *Engine) expireDue(ctx context.Context) {
+	ids, err := e.store.ListExpiredMessages(ctx, e.cfg.ExpireBatch)
 	if err != nil {
 		e.cfg.Logger.Warn("scan expired messages failed", "error", err)
 		return
@@ -319,6 +376,103 @@ func (e *Engine) expireDue(ctx context.Context, now time.Time) {
 		}
 		e.expired.Add(1)
 	}
+}
+
+// runLeaseRenewer extends the leases of the in-flight deliveries. Without it a
+// slow push would lose its lease to another worker and be delivered twice.
+func (e *Engine) runLeaseRenewer(ctx context.Context) {
+	interval := e.cfg.LeaseTTL / 3
+	if interval <= 0 {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			e.renewLeases(ctx)
+		}
+	}
+}
+
+// renewLeases extends every lease this worker still holds.
+func (e *Engine) renewLeases(ctx context.Context) {
+	ids := e.inFlightIDs()
+	if len(ids) == 0 {
+		return
+	}
+	if err := e.store.RenewLeases(ctx, e.cfg.WorkerID, ids, e.cfg.LeaseTTL); err != nil {
+		e.cfg.Logger.Warn("renew leases failed", "count", len(ids), "error", err)
+		return
+	}
+	e.renewed.Add(int64(len(ids)))
+}
+
+// track records that a delivery is being processed.
+func (e *Engine) track(id uint64) {
+	e.mu.Lock()
+	e.inFlight[id] = struct{}{}
+	e.mu.Unlock()
+}
+
+// untrack records that a delivery is no longer being processed.
+func (e *Engine) untrack(id uint64) {
+	e.mu.Lock()
+	delete(e.inFlight, id)
+	e.mu.Unlock()
+}
+
+// inFlightIDs returns the deliveries this worker currently holds a lease on.
+func (e *Engine) inFlightIDs() []uint64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.inFlight) == 0 {
+		return nil
+	}
+	ids := make([]uint64, 0, len(e.inFlight))
+	for id := range e.inFlight {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// Stop asks the run loop to stop claiming new work. The deliveries that are
+// already in flight are finished first.
+func (e *Engine) Stop() {
+	e.stopping.Store(true)
+}
+
+// Wait blocks until the run loop has stopped or the context expires.
+func (e *Engine) Wait(ctx context.Context) error {
+	select {
+	case <-e.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Shutdown stops the engine and releases every lease it still holds, so the
+// next worker can pick the rows up immediately instead of waiting for the
+// lease to expire.
+func (e *Engine) Shutdown(ctx context.Context) error {
+	e.Stop()
+	if err := e.Wait(ctx); err != nil {
+		return err
+	}
+	if e.store == nil {
+		return nil
+	}
+	released, err := e.store.ReleaseAllLeases(ctx, e.cfg.WorkerID)
+	if err != nil {
+		return err
+	}
+	if released > 0 {
+		e.cfg.Logger.Info("released leases on shutdown", "count", released)
+	}
+	return nil
 }
 
 // Snapshot returns the current counters.

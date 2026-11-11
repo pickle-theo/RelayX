@@ -1,5 +1,6 @@
-// Command delivery-worker runs the Phase 5 distributed delivery engine: outbox
-// relay, fan-out consumer, delivery-task consumer and the lease-based push loop.
+// Command delivery-worker runs the Phase 5.5 distributed delivery engine:
+// outbox relay, fan-out consumer, delivery-task consumer and the lease-based
+// push loop with online virtual shard rebalancing.
 package main
 
 import (
@@ -11,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"relayx/phase5.5/internal/broker"
@@ -19,6 +21,7 @@ import (
 	"relayx/phase5.5/internal/engine"
 	"relayx/phase5.5/internal/outbox"
 	"relayx/phase5.5/internal/registry"
+	"relayx/phase5.5/internal/shard"
 	"relayx/phase5.5/internal/store"
 	"relayx/phase5.5/internal/tenant"
 )
@@ -120,10 +123,17 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 	}
 
 	limiter := tenant.NewLimiter(st, cfg.TenantCacheTTL, cfg.DefaultInflight)
+
+	// The virtual shard assignment is maintained online. Every worker
+	// registers itself with a liveness lease and the rebalancer splits the
+	// shard space across the live workers, so growing or shrinking the fleet
+	// needs no restart and moves no rows.
+	shardProvider := store.NewShardRangeProvider(st, workerID, cfg.ScanInterval)
+	rebalancer := shard.NewRebalancer(st, cfg.ShardSpace, cfg.ShardRebalanceInterval,
+		cfg.ShardLeaseTTL, logger)
+
 	pool := engine.New(engine.Config{
 		WorkerID:     workerID,
-		Shards:       cfg.Shards,
-		ShardIndex:   cfg.ShardIndex,
 		Batch:        cfg.ClaimBatch,
 		LeaseTTL:     cfg.LeaseTTL,
 		ScanInterval: cfg.ScanInterval,
@@ -132,7 +142,7 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 		BackoffMax:   cfg.RetryBackoffMax,
 		ExpireBatch:  cfg.ExpireBatch,
 		Logger:       logger,
-	}, st, nil, nil, routes, hub, limiter)
+	}, st, nil, nil, routes, hub, limiter, shardProvider)
 
 	fanout := engine.NewFanout(st, producer, cfg.FanoutBatch, logger)
 	relay := outbox.NewRelay(st, producer, cfg.OutboxBatch, cfg.OutboxInterval,
@@ -170,10 +180,14 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 
 	errCh := make(chan error, 2)
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 	go func() {
 		defer wg.Done()
 		relay.Run(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		runShardCoordinator(ctx, st, workerID, cfg, rebalancer, logger)
 	}()
 	go func() {
 		defer wg.Done()
@@ -209,9 +223,9 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 
 	logger.Info("delivery worker started",
 		"worker_id", workerID,
-		"shards", cfg.Shards,
-		"shard_index", cfg.ShardIndex,
+		"shard_space", cfg.ShardSpace,
 		"lease_ttl", cfg.LeaseTTL,
+		"dlq_topic", cfg.DLQTopic,
 		"kafka_brokers", cfg.KafkaBrokers)
 	fmt.Printf("delivery worker %s started\n", workerID)
 
@@ -221,14 +235,22 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
 	var runErr error
 	select {
 	case runErr = <-errCh:
 	case sig := <-sigCh:
-		logger.Info("signal received, shutting down", "signal", sig.String())
+		logger.Info("signal received, draining", "signal", sig.String())
+		// Stop claiming new work and release every lease this worker still
+		// holds, so another worker can take the rows over immediately instead
+		// of waiting for the lease to expire.
+		drainCtx, cancelDrain := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		if err := pool.Shutdown(drainCtx); err != nil {
+			logger.Warn("drain failed", "error", err)
+		}
+		cancelDrain()
 	}
 	close(stopStats)
 	cancel()
@@ -277,6 +299,37 @@ func statsLoop(interval time.Duration, st *store.Store, pool *engine.Engine, lim
 				"throttled", stats.Throttled,
 				"no_route", stats.NoRoute,
 				"expired", stats.Expired)
+		}
+	}
+}
+
+// runShardCoordinator keeps this worker registered and the shard assignment in
+// sync.
+//
+// The registration happens before the first rebalance, so a worker owns an
+// interval from the start instead of competing with the other workers for the
+// whole shard space. A worker whose liveness lease expires is dropped from the
+// assignment and its interval is taken over by the remaining workers.
+func runShardCoordinator(ctx context.Context, st *store.Store, workerID string, cfg config.WorkerConfig, rb *shard.Rebalancer, logger *slog.Logger) {
+	interval := cfg.ShardHeartbeatInterval
+	if cfg.ShardRebalanceInterval < interval {
+		interval = cfg.ShardRebalanceInterval
+	}
+	if interval <= 0 {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		if err := st.HeartbeatShardWorker(ctx, workerID, cfg.ShardLeaseTTL); err != nil {
+			logger.Warn("shard heartbeat failed", "worker_id", workerID, "error", err)
+		} else if err := rb.Rebalance(ctx); err != nil && ctx.Err() == nil {
+			logger.Warn("shard rebalance failed", "error", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

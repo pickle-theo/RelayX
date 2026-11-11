@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // AcceptMessage persists one logical message, the resolved explicit endpoint
@@ -85,13 +84,16 @@ VALUES ($1, $2, $3::jsonb)`,
 
 // ListExpiredMessages returns the IDs of messages whose expire_at has passed
 // and which are still non-terminal, ordered by expire_at.
-func (s *Store) ListExpiredMessages(ctx context.Context, now time.Time, limit int) ([]uint64, error) {
+//
+// The comparison happens inside PostgreSQL so the database clock is the only
+// arbiter of the TTL.
+func (s *Store) ListExpiredMessages(ctx context.Context, limit int) ([]uint64, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id
 FROM messages
-WHERE expire_at <= $1 AND state IN (0, 1)
+WHERE expire_at <= now() AND state IN (0, 1)
 ORDER BY expire_at
-LIMIT $2`, now, limit)
+LIMIT $1`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("store: list expired messages: %w", err)
 	}

@@ -49,6 +49,14 @@ const (
 // DefaultTenant is used when a caller does not name a tenant.
 const DefaultTenant = "default"
 
+// DefaultShardSpace is the size of the virtual shard space. Every delivery row
+// is mapped to a stable virtual shard by its message id, so all deliveries of
+// one message stay on the same worker and keep their relative order.
+//
+// The space is fixed: growing it would move rows between workers, which is
+// exactly what the online rebalance must avoid.
+const DefaultShardSpace = 1024
+
 // ErrNoRecipients is returned when a caller resolved no recipient endpoint.
 var ErrNoRecipients = errors.New("store: no recipients")
 

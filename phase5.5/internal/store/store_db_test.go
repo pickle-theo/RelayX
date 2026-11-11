@@ -756,7 +756,7 @@ func TestExpireMessageHidesFromPullAndRetry(t *testing.T) {
 		ExpireAt:    time.Now().Add(-time.Minute),
 	}, []Endpoint{{UserID: "bob", DeviceID: "d0"}}...)
 
-	expired, err := st.ListExpiredMessages(ctx, time.Now(), 100)
+	expired, err := st.ListExpiredMessages(ctx, 100)
 	if err != nil {
 		t.Fatalf("ListExpiredMessages() error = %v", err)
 	}
@@ -793,7 +793,7 @@ func TestExpireMessageHidesFromPullAndRetry(t *testing.T) {
 	}
 
 	// An already expired message is no longer a cleanup candidate.
-	expired, err = st.ListExpiredMessages(ctx, time.Now(), 100)
+	expired, err = st.ListExpiredMessages(ctx, 100)
 	if err != nil {
 		t.Fatalf("ListExpiredMessages() error = %v", err)
 	}

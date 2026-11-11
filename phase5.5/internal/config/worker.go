@@ -37,10 +37,17 @@ type WorkerConfig struct {
 	ConsumerFetchBackoff time.Duration
 
 	LeaseTTL        time.Duration
-	Shards          int
-	ShardIndex      int
 	DefaultInflight int
 	TenantCacheTTL  time.Duration
+
+	// ShardSpace is the size of the fixed virtual shard space.
+	ShardSpace int
+	// ShardRebalanceInterval is the period of the online rebalance.
+	ShardRebalanceInterval time.Duration
+	// ShardHeartbeatInterval is the period of the worker liveness heartbeat.
+	ShardHeartbeatInterval time.Duration
+	// ShardLeaseTTL is the liveness lease of a worker registration.
+	ShardLeaseTTL time.Duration
 
 	ScanInterval     time.Duration
 	MaxAttempts      int
@@ -113,11 +120,17 @@ func (c WorkerConfig) Validate() error {
 	if err := validatePositiveDuration("lease-ttl", c.LeaseTTL); err != nil {
 		return err
 	}
-	if c.Shards < 1 {
-		return fmt.Errorf("worker-shards must be at least 1, got %d", c.Shards)
+	if c.ShardSpace < 1 {
+		return fmt.Errorf("shard-space must be at least 1, got %d", c.ShardSpace)
 	}
-	if c.ShardIndex < 0 || c.ShardIndex >= c.Shards {
-		return fmt.Errorf("worker-shard-index must be in [0,%d), got %d", c.Shards, c.ShardIndex)
+	if err := validatePositiveDuration("shard-rebalance-interval", c.ShardRebalanceInterval); err != nil {
+		return err
+	}
+	if err := validatePositiveDuration("shard-heartbeat-interval", c.ShardHeartbeatInterval); err != nil {
+		return err
+	}
+	if err := validatePositiveDuration("shard-lease-ttl", c.ShardLeaseTTL); err != nil {
+		return err
 	}
 	if c.DefaultInflight < 0 {
 		return fmt.Errorf("default-inflight must not be negative, got %d", c.DefaultInflight)
@@ -198,8 +211,10 @@ func ParseWorker(args []string) (WorkerConfig, error) {
 	fs.DurationVar(&cfg.ConsumerRetryBackoff, "consumer-retry-backoff", 500*time.Millisecond, "delay before the next Kafka handler attempt")
 	fs.DurationVar(&cfg.ConsumerFetchBackoff, "consumer-fetch-backoff", 200*time.Millisecond, "delay before the next Kafka fetch after a broker error")
 	fs.DurationVar(&cfg.LeaseTTL, "lease-ttl", 30*time.Second, "delivery lease lifetime")
-	fs.IntVar(&cfg.Shards, "worker-shards", 1, "number of delivery scan shards")
-	fs.IntVar(&cfg.ShardIndex, "worker-shard-index", 0, "shard owned by this worker")
+	fs.IntVar(&cfg.ShardSpace, "shard-space", 1024, "size of the fixed virtual shard space")
+	fs.DurationVar(&cfg.ShardRebalanceInterval, "shard-rebalance-interval", 5*time.Second, "period of the online shard rebalance")
+	fs.DurationVar(&cfg.ShardHeartbeatInterval, "shard-heartbeat-interval", 5*time.Second, "period of the worker liveness heartbeat")
+	fs.DurationVar(&cfg.ShardLeaseTTL, "shard-lease-ttl", 30*time.Second, "liveness lease of a worker registration")
 	fs.IntVar(&cfg.DefaultInflight, "default-inflight", 256, "default in-flight limit for tenants without a quota")
 	fs.DurationVar(&cfg.TenantCacheTTL, "tenant-cache-ttl", 30*time.Second, "tenant quota cache lifetime")
 	fs.DurationVar(&cfg.ScanInterval, "scan-interval", time.Second, "delivery due scan interval")
