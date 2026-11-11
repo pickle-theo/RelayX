@@ -1,0 +1,74 @@
+scenario: fault
+started_at: 2026-11-11T18:33:16+08:00
+finished_at: 2026-11-11T18:34:59+08:00
+duration_s: 103.03
+host: WIN-1DPKB4M7I5M  os: Microsoft Windows NT 10.0.26300.0
+go: go version go1.27.3 windows/amd64
+postgres_container: relayx-phase2-pg
+redis_container: relayx-phase4-redis
+kafka_container: relayx-phase5-kafka
+param: gateway A: 127.0.0.1:9000 node-a node-addr 127.0.0.1:9100 advertise 127.0.0.1:9100
+param: gateway B: 127.0.0.1:9001 node-b node-addr 127.0.0.1:9101 advertise 192.0.2.1:9199
+param: message-service: 127.0.0.1:8081
+param: worker w1: lease-ttl 40s node-dial-timeout 60s (killed during the push)
+param: worker w2: lease-ttl 40s (takes the lease over after it expires)
+param: kafka: stopped for the acceptance phase, restarted for the drain phase
+param: crash message_id: 1
+param: kafka-down message_id: 2
+process: gateway-a args: -addr 127.0.0.1:9000 -node-id node-a -node-addr 127.0.0.1:9100 -redis-addr 127.0.0.1:6379 -kafka-brokers 127.0.0.1:9092 -stats-interval 1s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable -node-advertise-addr 127.0.0.1:9100
+process: gateway-b args: -addr 127.0.0.1:9001 -node-id node-b -node-addr 127.0.0.1:9101 -redis-addr 127.0.0.1:6379 -kafka-brokers 127.0.0.1:9092 -stats-interval 1s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable -node-advertise-addr 192.0.2.1:9199
+process: message-service args: -http-addr 127.0.0.1:8081 -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: worker-w1 args: -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable -kafka-brokers 127.0.0.1:9092 -redis-addr 127.0.0.1:6379 -node-id w1 -worker-shards 1 -worker-shard-index 0 -claim-batch 100 -lease-ttl 40s -scan-interval 200ms -tenant-cache-ttl 30s -default-inflight 256 -node-dial-timeout 60s -stats-interval 1s -outbox-interval 200ms -outbox-batch 100 -retry-backoff-base 500ms -retry-backoff-max 5s
+process: client-bob-on-b args: -addr 127.0.0.1:9001 -name bob -user bob -device phone -ack both -pull=false -interval 5s
+process: worker-w2 args: -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable -kafka-brokers 127.0.0.1:9092 -redis-addr 127.0.0.1:6379 -node-id w2 -worker-shards 1 -worker-shard-index 0 -claim-batch 100 -lease-ttl 40s -scan-interval 200ms -tenant-cache-ttl 30s -default-inflight 256 -node-dial-timeout 5s -stats-interval 1s -outbox-interval 200ms -outbox-batch 100 -retry-backoff-base 500ms -retry-backoff-max 5s
+process: client-bob-on-a args: -addr 127.0.0.1:9000 -name bob -user bob -device phone -ack both -pull=false -interval 5s
+process: client-alice args: -addr 127.0.0.1:9000 -name alice -user alice -device web -to bob -count 1 -interval 1s -ack none -pull=false
+
+PASS: docker is available
+PASS: PostgreSQL container relayx-phase2-pg is running
+PASS: Redis container is running and answers PONG
+PASS: Kafka container relayx-phase5-kafka is running and answers --list
+PASS: Kafka topics relayx.fanout.v1 and relayx.deliver.v1 recreated empty
+PASS: deliveries/messages/endpoints/outbox truncated
+PASS: bin/gateway.exe, client.exe, message-service.exe, delivery-worker.exe built
+PASS: ports 9000, 9001, 9100, 9101 and 8081 are free
+PASS: both gateways listen on their client and node ports
+PASS: message-service /healthz returns 200
+PASS: delivery-worker w1 started
+PASS: bob/phone logged in on gateway B and its endpoint row exists
+PASS: POST /v1/messages returned HTTP 202 (got 202)
+PASS: fan-out created exactly one delivery row
+PASS: worker w1 holds the lease on delivery of message 1
+PASS: the leased row has lease_until in the future
+PASS: worker w1 was killed (taskkill /F, pid 13680)
+PASS: the killed worker still owns the lease (owner 'w1')
+PASS: the lease is still valid after the crash
+PASS: the crash left the lease behind, so no other worker may claim the row yet
+PASS: delivery-worker w2 started
+PASS: worker w2 did not steal the row while the lease was valid (owner 'w1')
+PASS: no push attempt was made while the lease was valid (attempts 0)
+PASS: worker w2 did not claim any row while the lease was valid (claimed 0)
+PASS: the lease of the dead worker excluded worker w2 for 15s
+PASS: worker w2 took the row over after the lease expired
+PASS: worker w2 claimed the row (claimed counter 1)
+PASS: bob/phone reconnected on gateway A, the route now points at node-a
+PASS: the delivery reached SENT after the takeover
+PASS: the message reached COMPLETED after the takeover
+PASS: the takeover produced exactly one delivery row (got 1)
+PASS: the takeover did not duplicate the delivery row
+PASS: Kafka container relayx-phase5-kafka stopped
+PASS: acceptance still returned HTTP 202 while Kafka was down (got 202)
+PASS: the outbox row of message 2 is pending while Kafka is down
+PASS: the outbox row stays pending while Kafka is down
+PASS: the gateway SEND path still accepted the message while Kafka was down
+PASS: the failed outbox row has a scheduled next attempt
+PASS: no relay logged the failed publication to Kafka
+PASS: the outbox relay recorded the failure (attempts grew, next attempt scheduled)
+PASS: Kafka container restarted and the topics are available again
+PASS: the outbox backlog was published after Kafka came back
+PASS: the delivery accepted during the outage reached SENT
+PASS: the message accepted during the outage reached COMPLETED
+PASS: no outbox row is left unpublished (got 0)
+
+exit_code: 0
+evidence_files: client-alice.err.log, client-alice.out.log, client-bob-on-a.err.log, client-bob-on-a.out.log, client-bob-on-b.err.log, client-bob-on-b.out.log, gateway-a.err.log, gateway-a.out.log, gateway-b.err.log, gateway-b.out.log, message-service.err.log, message-service.out.log, worker-w1.err.log, worker-w1.out.log, worker-w2.err.log, worker-w2.out.log

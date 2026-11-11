@@ -1,0 +1,3 @@
+2026/11/11 18:33:32 INFO store: migrations complete applied=0 skipped=2
+2026/11/11 18:33:32 INFO delivery worker started worker_id=w1 shards=1 shard_index=0 lease_ttl=40s kafka_brokers=[127.0.0.1:9092]
+2026/11/11 18:33:33 INFO delivery worker stats outbox_pending=0 leases_held=1 tenant_inflight=map[default:1] claimed=1 sent=0 retried=0 failed=0 throttled=0 no_route=0 expired=0

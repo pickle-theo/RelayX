@@ -1,0 +1,16 @@
+logged in as bob/phone session=1
+connected to 127.0.0.1:9000 as bob
+deliver from=alice/web message_id=1 body=big-1
+deliver from=alice/web message_id=2 body=big-2
+deliver from=alice/web message_id=3 body=big-3
+echo msg_id=1 body=bob#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=alice/web message_id=4 body=big-4
+deliver from=alice/web message_id=5 body=big-5
+deliver from=alice/web message_id=6 body=big-6
+deliver from=alice/web message_id=7 body=big-7
+echo msg_id=2 body=bob#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=alice/web message_id=8 body=big-8
+deliver from=alice/web message_id=9 body=big-9
+deliver from=alice/web message_id=10 body=big-10
+deliver from=alice/web message_id=11 body=big-11
+deliver from=alice/web message_id=12 body=big-12

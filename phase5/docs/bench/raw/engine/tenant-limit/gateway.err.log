@@ -1,0 +1,24 @@
+2026/11/11 18:06:56 INFO store: migrations complete applied=0 skipped=2
+2026/11/11 18:06:56 INFO database ready max_open_conns=64 max_idle_conns=8
+2026/11/11 18:06:56 INFO cluster enabled node_id=node-a node_addr=127.0.0.1:9100 advertise_addr=127.0.0.1:9100 redis_addr=127.0.0.1:6379
+2026/11/11 18:06:56 INFO outbox relay started brokers=127.0.0.1:9092
+2026/11/11 18:06:56 INFO gateway listening addr=127.0.0.1:9000
+2026/11/11 18:06:56 INFO connection accepted conn_id=1 remote=127.0.0.1:57154
+2026/11/11 18:06:56 INFO connection closed conn_id=1 remote=127.0.0.1:57154 reason="peer closed"
+2026/11/11 18:06:56 WARN node handshake read failed remote=127.0.0.1:57155 error=EOF
+2026/11/11 18:06:56 INFO connection accepted conn_id=2 remote=127.0.0.1:57167
+2026/11/11 18:06:56 INFO connection accepted conn_id=3 remote=127.0.0.1:57168
+2026/11/11 18:06:57 INFO gateway stats node_id=node-a cluster_peers=0 goroutines=18 heap_alloc_mb=1.92 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=11 db_open_conns=2
+2026/11/11 18:06:58 INFO gateway stats node_id=node-a cluster_peers=0 goroutines=17 heap_alloc_mb=2.46 heap_sys_mb=11.56 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=2
+2026/11/11 18:06:59 INFO node connected node_id=w1 addr=127.0.0.1:57187 inbound=true
+2026/11/11 18:06:59 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.49 heap_sys_mb=11.53 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=2 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:00 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=18 heap_alloc_mb=2.6 heap_sys_mb=11.5 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=11 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:01 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=18 heap_alloc_mb=2.7 heap_sys_mb=11.47 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=10 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:02 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.71 heap_sys_mb=11.47 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=9 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:03 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.72 heap_sys_mb=11.47 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=8 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:04 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.73 heap_sys_mb=11.47 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=7 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:05 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=18 heap_alloc_mb=2.75 heap_sys_mb=11.44 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=6 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:06 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.76 heap_sys_mb=11.41 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=6 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:07 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.78 heap_sys_mb=11.41 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=5 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:08 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=19 heap_alloc_mb=2.8 heap_sys_mb=11.38 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=4 outbox_pending=0 db_open_conns=2
+2026/11/11 18:07:09 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=18 heap_alloc_mb=2.83 heap_sys_mb=11.38 gc_cycles=0 gc_pause_ms=0 active_conns=2 active_sessions=2 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=2

@@ -1,0 +1,9 @@
+2026/11/11 18:06:25 INFO store: migrations complete applied=0 skipped=2
+2026/11/11 18:06:25 INFO delivery worker started worker_id=w1 shards=1 shard_index=0 lease_ttl=5s kafka_brokers=[127.0.0.1:9092]
+2026/11/11 18:06:26 INFO delivery worker stats outbox_pending=0 leases_held=0 tenant_inflight=map[] claimed=0 sent=0 retried=0 failed=0 throttled=0 no_route=0 expired=0
+2026/11/11 18:06:27 INFO delivery worker stats outbox_pending=0 leases_held=0 tenant_inflight=map[] claimed=0 sent=0 retried=0 failed=0 throttled=0 no_route=0 expired=0
+2026/11/11 18:06:28 INFO delivery worker stats outbox_pending=0 leases_held=0 tenant_inflight=map[] claimed=0 sent=0 retried=0 failed=0 throttled=0 no_route=0 expired=0
+2026/11/11 18:06:29 INFO node connected node_id=node-a addr=127.0.0.1:9100 inbound=false
+2026/11/11 18:06:29 INFO delivery worker stats outbox_pending=0 leases_held=0 tenant_inflight=map[] claimed=1 sent=1 retried=0 failed=0 throttled=0 no_route=0 expired=0
+2026/11/11 18:06:30 INFO delivery worker stats outbox_pending=0 leases_held=0 tenant_inflight=map[] claimed=1 sent=1 retried=0 failed=0 throttled=0 no_route=0 expired=0
+2026/11/11 18:06:30 INFO node disconnected node_id=node-a addr=127.0.0.1:9100 reason="read error: read tcp 127.0.0.1:49432->127.0.0.1:9100: wsarecv: An existing connection was forcibly closed by the remote host."

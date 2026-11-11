@@ -1,0 +1,15 @@
+2026/11/11 18:06:24 INFO store: migrations complete applied=0 skipped=2
+2026/11/11 18:06:24 INFO database ready max_open_conns=64 max_idle_conns=8
+2026/11/11 18:06:24 INFO cluster enabled node_id=node-a node_addr=127.0.0.1:9100 advertise_addr=127.0.0.1:9100 redis_addr=127.0.0.1:6379
+2026/11/11 18:06:24 INFO outbox relay started brokers=127.0.0.1:9092
+2026/11/11 18:06:24 INFO gateway listening addr=127.0.0.1:9000
+2026/11/11 18:06:24 INFO connection accepted conn_id=1 remote=127.0.0.1:49403
+2026/11/11 18:06:24 INFO connection closed conn_id=1 remote=127.0.0.1:49403 reason="peer closed"
+2026/11/11 18:06:24 WARN node handshake read failed remote=127.0.0.1:49404 error=EOF
+2026/11/11 18:06:25 INFO connection accepted conn_id=2 remote=127.0.0.1:49415
+2026/11/11 18:06:25 INFO gateway stats node_id=node-a cluster_peers=0 goroutines=11 heap_alloc_mb=1.9 heap_sys_mb=7.63 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=1
+2026/11/11 18:06:26 INFO gateway stats node_id=node-a cluster_peers=0 goroutines=11 heap_alloc_mb=1.91 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=1
+2026/11/11 18:06:27 INFO gateway stats node_id=node-a cluster_peers=0 goroutines=11 heap_alloc_mb=1.92 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=1
+2026/11/11 18:06:28 INFO gateway stats node_id=node-a cluster_peers=0 goroutines=10 heap_alloc_mb=1.93 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=2
+2026/11/11 18:06:29 INFO node connected node_id=w1 addr=127.0.0.1:49432 inbound=true
+2026/11/11 18:06:29 INFO gateway stats node_id=node-a cluster_peers=1 goroutines=13 heap_alloc_mb=2.05 heap_sys_mb=7.56 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 outbox_pending=0 db_open_conns=2

@@ -1,0 +1,75 @@
+scenario: tenant-limit
+started_at: 2026-11-11T18:06:40+08:00
+finished_at: 2026-11-11T18:07:10+08:00
+duration_s: 29.14
+host: WIN-1DPKB4M7I5M  os: Microsoft Windows NT 10.0.26300.0
+go: go version go1.27.3 windows/amd64
+postgres_container: relayx-phase2-pg
+redis_container: relayx-phase4-redis
+kafka_container: relayx-phase5-kafka
+param: gateway: 127.0.0.1:9000 node-a node-addr 127.0.0.1:9100
+param: message-service: 127.0.0.1:8081
+param: delivery-worker: worker-id w1 default-inflight 4 tenant-cache-ttl 1s
+param: tenant big: rate_per_sec=1 burst=1 max_inflight=1 (12 messages to bob)
+param: tenant small: rate_per_sec=0 burst=0 max_inflight=0 (4 messages to carol)
+param: tenant free: no quota row (2 messages to carol, default limits)
+process: gateway args: -addr 127.0.0.1:9000 -node-id node-a -node-addr 127.0.0.1:9100 -redis-addr 127.0.0.1:6379 -kafka-brokers 127.0.0.1:9092 -stats-interval 1s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: message-service args: -http-addr 127.0.0.1:8081 -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: worker-w1 args: -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable -kafka-brokers 127.0.0.1:9092 -redis-addr 127.0.0.1:6379 -node-id w1 -worker-shards 1 -worker-shard-index 0 -claim-batch 100 -lease-ttl 30s -scan-interval 200ms -tenant-cache-ttl 1s -default-inflight 4 -node-dial-timeout 1s -stats-interval 1s -outbox-interval 200ms -outbox-batch 100 -retry-backoff-base 500ms -retry-backoff-max 5s
+process: client-bob args: -addr 127.0.0.1:9000 -name bob -user bob -device phone -ack both -pull=false -interval 5s
+process: client-carol args: -addr 127.0.0.1:9000 -name carol -user carol -device laptop -ack both -pull=false -interval 5s
+
+PASS: docker is available
+PASS: PostgreSQL container relayx-phase2-pg is running
+PASS: Redis container is running and answers PONG
+PASS: Kafka container relayx-phase5-kafka is running and answers --list
+PASS: Kafka topics relayx.fanout.v1 and relayx.deliver.v1 recreated empty
+PASS: deliveries/messages/endpoints/outbox truncated
+PASS: tenant quotas written (big=1/s burst 1 inflight 1, small=zero quota, free=unconfigured)
+PASS: bin/gateway.exe, client.exe, message-service.exe, delivery-worker.exe built
+PASS: ports 9000, 9100 and 8081 are free
+PASS: gateway TCP 9000 and node port 9100 are listening
+PASS: message-service /healthz returns 200
+PASS: delivery-worker w1 started
+PASS: bob/phone and carol/laptop are online
+PASS: the big tenant accepted message 1 (got 202)
+PASS: the big tenant accepted message 2 (got 202)
+PASS: the big tenant accepted message 3 (got 202)
+PASS: the big tenant accepted message 4 (got 202)
+PASS: the big tenant accepted message 5 (got 202)
+PASS: the big tenant accepted message 6 (got 202)
+PASS: the big tenant accepted message 7 (got 202)
+PASS: the big tenant accepted message 8 (got 202)
+PASS: the big tenant accepted message 9 (got 202)
+PASS: the big tenant accepted message 10 (got 202)
+PASS: the big tenant accepted message 11 (got 202)
+PASS: the big tenant accepted message 12 (got 202)
+PASS: the small tenant accepted message 1 (got 202)
+PASS: the small tenant accepted message 2 (got 202)
+PASS: the small tenant accepted message 3 (got 202)
+PASS: the small tenant accepted message 4 (got 202)
+PASS: the unconfigured tenant accepted message 1 (got 202)
+PASS: the unconfigured tenant accepted message 2 (got 202)
+PASS: accepted 12 messages for 'big', 4 for 'small' and 2 for 'free'
+PASS: the fan-out created one delivery per accepted message for every tenant
+PASS: the small tenant delivered all 4 messages (got 4)
+PASS: the unconfigured tenant delivered all 2 messages (got 2)
+PASS: the other tenants were not affected by the throttled tenant
+PASS: the big tenant is still throttled (7 of 12 delivered)
+PASS: the big tenant is throttled (7 of 12 delivered after 6s)
+PASS: throttling consumed 0 push attempts of the big tenant
+PASS: the throttled tenant has 0 failed deliveries
+PASS: the throttled deliveries were postponed with next_retry_at
+PASS: throttling only moved next_retry_at, no push attempt was consumed
+PASS: the worker stats report throttled=56
+PASS: the worker stats report the per tenant in-flight counter
+PASS: the worker stats report the outbox backlog
+PASS: the worker stats report the held leases
+PASS: the worker stats report the tenant counters (throttled=56)
+PASS: the quota of the big tenant was relaxed
+PASS: all 12 messages of the big tenant completed after the quota was relaxed
+PASS: the messages of the other tenants completed as well
+PASS: the big tenant still has 0 pending deliveries
+
+exit_code: 0
+evidence_files: client-bob.err.log, client-bob.out.log, client-carol.err.log, client-carol.out.log, gateway.err.log, gateway.out.log, message-service.err.log, message-service.out.log, worker-w1.err.log, worker-w1.out.log

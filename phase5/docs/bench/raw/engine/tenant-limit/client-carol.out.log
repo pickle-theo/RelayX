@@ -1,0 +1,10 @@
+logged in as carol/laptop session=2
+connected to 127.0.0.1:9000 as carol
+deliver from=alice/web message_id=13 body=small-1
+deliver from=alice/web message_id=14 body=small-2
+deliver from=alice/web message_id=15 body=small-3
+deliver from=alice/web message_id=16 body=small-4
+deliver from=alice/web message_id=17 body=free-1
+deliver from=alice/web message_id=18 body=free-2
+echo msg_id=1 body=carol#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=2 body=carol#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
