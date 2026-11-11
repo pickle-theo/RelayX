@@ -1,0 +1,22 @@
+2026/11/11 14:31:20 INFO store: migrations complete applied=0 skipped=1
+2026/11/11 14:31:20 INFO database ready max_open_conns=64 max_idle_conns=8
+2026/11/11 14:31:20 INFO cluster enabled node_id=node1 node_addr=127.0.0.1:9101 advertise_addr=127.0.0.1:9101 redis_addr=127.0.0.1:6379
+2026/11/11 14:31:20 INFO delivery worker started interval=1s max_attempts=5
+2026/11/11 14:31:20 INFO gateway listening addr=127.0.0.1:5001
+2026/11/11 14:31:20 INFO connection accepted conn_id=1 remote=127.0.0.1:59161
+2026/11/11 14:31:20 INFO connection closed conn_id=1 remote=127.0.0.1:59161 reason="peer closed"
+2026/11/11 14:31:20 WARN node handshake read failed remote=127.0.0.1:59166 error=EOF
+2026/11/11 14:31:22 INFO gateway stats node_id=node1 cluster_peers=0 goroutines=9 heap_alloc_mb=1.06 heap_sys_mb=7.72 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:22 INFO connection accepted conn_id=2 remote=127.0.0.1:59175
+2026/11/11 14:31:22 INFO node connected node_id=node3 addr=127.0.0.1:9103 inbound=false
+2026/11/11 14:31:23 INFO session closed session_id=1 user_id=bob-1111143114-a device_id=d1
+2026/11/11 14:31:23 INFO connection closed conn_id=2 remote=127.0.0.1:59175 reason="peer closed"
+2026/11/11 14:31:23 INFO node disconnected node_id=node3 addr=127.0.0.1:9103 reason="read error: read tcp 127.0.0.1:59176->127.0.0.1:9103: wsarecv: An existing connection was forcibly closed by the remote host."
+2026/11/11 14:31:23 INFO connection accepted conn_id=3 remote=127.0.0.1:59177
+2026/11/11 14:31:23 WARN node dial failed node_id=node3 addr=127.0.0.1:9103 error="cluster: dial 127.0.0.1:9103: dial tcp 127.0.0.1:9103: connectex: No connection could be made because the target machine actively refused it."
+2026/11/11 14:31:23 WARN gateway: kick forward failed node_id=node3 user_id=alice device_id=d1 error="cluster: dial 127.0.0.1:9103: dial tcp 127.0.0.1:9103: connectex: No connection could be made because the target machine actively refused it."
+2026/11/11 14:31:24 INFO gateway stats node_id=node1 cluster_peers=0 goroutines=10 heap_alloc_mb=1.28 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=2 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:26 INFO gateway stats node_id=node1 cluster_peers=0 goroutines=10 heap_alloc_mb=1.3 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=2 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:26 INFO connection accepted conn_id=4 remote=127.0.0.1:59179
+2026/11/11 14:31:26 INFO session closed session_id=3 user_id=bob-1111143114-b device_id=d1
+2026/11/11 14:31:26 INFO connection closed conn_id=4 remote=127.0.0.1:59179 reason="peer closed"

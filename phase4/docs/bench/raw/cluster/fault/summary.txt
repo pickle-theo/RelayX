@@ -1,0 +1,42 @@
+scenario: fault
+started_at: 2026-11-11T14:31:14+08:00
+finished_at: 2026-11-11T14:31:27+08:00
+duration_s: 13.68
+host: WIN-1DPKB4M7I5M  os: Microsoft Windows NT 10.0.26300.0
+go: go version go1.27.3 windows/amd64
+postgres_container: relayx-phase2-pg
+redis_container: relayx-phase4-redis
+param: sender_users: bob-1111143114-a, bob-1111143114-b (run-scoped per client process, avoids the (from_user, client_msg_id) idempotency key)
+param: nodes: node1 127.0.0.1:5001/9101, node2 127.0.0.1:5002/9102, node3 127.0.0.1:5003/9103
+param: gateway_args: -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s
+param: client_addrs: 127.0.0.1:5003,127.0.0.1:5001,127.0.0.1:5002
+param: fault: Stop-Process -Id <node3 pid> -Force (kill -9 equivalent)
+process: gateway-node1 args: -addr 127.0.0.1:5001 -node-id node1 -node-addr 127.0.0.1:9101 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: gateway-node2 args: -addr 127.0.0.1:5002 -node-id node2 -node-addr 127.0.0.1:9102 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: gateway-node3 args: -addr 127.0.0.1:5003 -node-id node3 -node-addr 127.0.0.1:9103 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: alice-failover args: -addr 127.0.0.1:5003,127.0.0.1:5001,127.0.0.1:5002 -user alice -device d1
+process: bob-node1-before-kill args: -addr 127.0.0.1:5001 -user bob-1111143114-a -device d1 -to alice -count 2 -interval 200ms
+process: bob-node1-after-kill args: -addr 127.0.0.1:5001 -user bob-1111143114-b -device d1 -to alice -count 2 -interval 200ms
+
+PASS: docker is available
+PASS: PostgreSQL container relayx-phase2-pg is running
+PASS: Redis container is running and answers PONG
+PASS: bin/gateway.exe and bin/client.exe built
+PASS: cluster ports 5001-5003 and 9101-9103 are free
+PASS: 3 gateway nodes healthy (6 ports) in 1.37s
+PASS: alice/d1 logged in on node3 (127.0.0.1:5003, multi-address client)
+PASS: Redis route for alice points to node3 (found: node3)
+INFO: baseline deliveries of alice/d1 from bob-1111143114-a before the fault: 0
+PASS: bob sender before the kill exited with code 0
+PASS: alice received 2 cross-node deliveries before the fault
+PASS: node3 gateway killed with Stop-Process -Force (kill -9 equivalent)
+PASS: alice logged 'connection lost, switching gateway node' after 0.18s and reconnected in 0.19s
+PASS: registry reclaimed node3: relayx:node:node3 and relayx:node_routes:node3 gone 2.19s after the kill
+INFO: deliveries of alice/d1 from bob-1111143114-b after the switch: 0
+PASS: bob sender after the kill exited with code 0
+PASS: alice received 2 new deliveries after the failover
+PASS: Redis route for alice points to a live node (found: node1)
+PASS: Redis route for alice no longer points to the killed node3
+
+exit_code: 0
+evidence_files: alice-failover.cmd, alice-failover.err.log, alice-failover.out.log, bob-node1-after-kill.cmd, bob-node1-after-kill.err.log, bob-node1-after-kill.out.log, bob-node1-before-kill.cmd, bob-node1-before-kill.err.log, bob-node1-before-kill.out.log, gateway-node1.err.log, gateway-node1.out.log, gateway-node2.err.log, gateway-node2.out.log, gateway-node3.err.log, gateway-node3.out.log

@@ -1,0 +1,49 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: goroutine
+Time: 2026-11-11 12:31:30 CST
+Showing nodes accounting for 2004, 99.75% of 2009 total
+Dropped 55 nodes (cum <= 10)
+      flat  flat%   sum%        cum   cum%
+      2004 99.75% 99.75%       2004 99.75%  runtime.gopark
+         0     0% 99.75%       1988 98.95%  runtime.selectgo
+         0     0% 99.75%       1001 49.83%  database/sql.(*DB).retry
+         0     0% 99.75%       1000 49.78%  relayx/phase3/internal/gateway.(*Handler).Handle
+         0     0% 99.75%       1000 49.78%  relayx/phase3/internal/transport.(*Conn).readLoop
+         0     0% 99.75%       1000 49.78%  relayx/phase3/internal/transport.(*Conn).run
+         0     0% 99.75%       1000 49.78%  relayx/phase3/internal/transport.(*Conn).writeLoop
+         0     0% 99.75%       1000 49.78%  relayx/phase3/internal/transport.(*Server).handleConn.func2
+         0     0% 99.75%        985 49.03%  database/sql.(*DB).conn
+         0     0% 99.75%        576 28.67%  database/sql.(*DB).QueryContext
+         0     0% 99.75%        576 28.67%  database/sql.(*DB).QueryContext.func1
+         0     0% 99.75%        576 28.67%  database/sql.(*DB).query
+         0     0% 99.75%        576 28.67%  relayx/phase3/internal/gateway.(*Handler).handleSend
+         0     0% 99.75%        425 21.15%  database/sql.(*DB).ExecContext
+         0     0% 99.75%        425 21.15%  database/sql.(*DB).ExecContext.func1
+         0     0% 99.75%        425 21.15%  database/sql.(*DB).exec
+         0     0% 99.75%        297 14.78%  database/sql.(*DB).QueryRowContext (inline)
+         0     0% 99.75%        297 14.78%  relayx/phase3/internal/store.(*Store).AcceptMessage
+         0     0% 99.75%        279 13.89%  relayx/phase3/internal/gateway.(*Handler).resolveRecipients
+         0     0% 99.75%        279 13.89%  relayx/phase3/internal/store.(*Store).ListEndpoints
+         0     0% 99.75%        224 11.15%  relayx/phase3/internal/gateway.(*Handler).handleReceiptAck
+         0     0% 99.75%        224 11.15%  relayx/phase3/internal/store.(*Store).ApplyReceiptAck
+         0     0% 99.75%        200  9.96%  relayx/phase3/internal/gateway.(*Handler).handleBusinessAck
+         0     0% 99.75%        200  9.96%  relayx/phase3/internal/store.(*Store).ApplyBusinessAck
+         0     0% 99.75%         16   0.8%  database/sql.withLock
+         0     0% 99.75%         16   0.8%  github.com/jackc/pgx/v5/pgconn.(*PgConn).ExecStatement
+         0     0% 99.75%         16   0.8%  github.com/jackc/pgx/v5/pgconn.(*PgConn).execExtendedSuffix
+         0     0% 99.75%         16   0.8%  internal/poll.(*pollDesc).wait
+         0     0% 99.75%         16   0.8%  internal/poll.(*pollDesc).waitRead (inline)
+         0     0% 99.75%         16   0.8%  internal/poll.runtime_pollWait
+         0     0% 99.75%         16   0.8%  runtime.netpollblock
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgconn.(*PgConn).peekMessage
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgconn.(*PgConn).receiveMessage
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgconn.(*ResultReader).readUntilRowDescription
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgconn.(*ResultReader).receiveMessage
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive
+         0     0% 99.75%         15  0.75%  github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next
+         0     0% 99.75%         15  0.75%  internal/poll.(*FD).Read
+         0     0% 99.75%         15  0.75%  io.ReadAtLeast
+         0     0% 99.75%         15  0.75%  net.(*conn).Read
+         0     0% 99.75%         15  0.75%  net.(*netFD).Read

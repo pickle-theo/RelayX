@@ -1,0 +1,26 @@
+﻿File: relayx-gw
+Build ID: f8d33347349b7f68bd14269124f2a9c9f32f8912
+Type: delay
+Time: 2026-11-11 13:11:58 CST
+Showing nodes accounting for 1848.02ms, 100% of 1848.02ms total
+Dropped 172 nodes (cum <= 9.24ms)
+Showing top 18 nodes out of 85
+      flat  flat%   sum%        cum   cum%
+ 1203.11ms 65.10% 65.10%  1203.11ms 65.10%  runtime.unlock (inline)
+  635.05ms 34.36% 99.47%   635.05ms 34.36%  sync.(*Mutex).Unlock (partial-inline)
+    9.86ms  0.53%   100%     9.86ms  0.53%  runtime._LostContendedRuntimeLock
+         0     0%   100%    11.27ms  0.61%  _.goready.func1
+         0     0%   100%    46.96ms  2.54%  bufio.(*Reader).Read
+         0     0%   100%   352.35ms 19.07%  database/sql.(*DB).ExecContext
+         0     0%   100%   352.35ms 19.07%  database/sql.(*DB).ExecContext.func1
+         0     0%   100%    54.75ms  2.96%  database/sql.(*DB).conn
+         0     0%   100%   352.35ms 19.07%  database/sql.(*DB).exec
+         0     0%   100%   297.60ms 16.10%  database/sql.(*DB).execDC
+         0     0%   100%   206.73ms 11.19%  database/sql.(*DB).execDC.func1
+         0     0%   100%    90.87ms  4.92%  database/sql.(*DB).execDC.func2
+         0     0%   100%   206.73ms 11.19%  database/sql.(*DB).putConn
+         0     0%   100%   352.39ms 19.07%  database/sql.(*DB).retry
+         0     0%   100%   206.73ms 11.19%  database/sql.(*driverConn).releaseConn
+         0     0%   100%    90.63ms  4.90%  database/sql.driverArgsConnLocked
+         0     0%   100%    90.91ms  4.92%  database/sql.withLock
+         0     0%   100%    47.25ms  2.56%  internal/poll.(*FD).Read

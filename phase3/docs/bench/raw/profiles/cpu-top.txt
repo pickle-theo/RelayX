@@ -1,0 +1,44 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: cpu
+Time: 2026-11-11 12:25:03 CST
+Duration: 15s, Total samples = 3.97s (26.46%)
+Showing nodes accounting for 3.34s, 84.13% of 3.97s total
+Dropped 76 nodes (cum <= 0.02s)
+Showing top 35 nodes out of 183
+      flat  flat%   sum%        cum   cum%
+     1.28s 32.24% 32.24%      1.28s 32.24%  internal/runtime/syscall/linux.Syscall6
+     1.12s 28.21% 60.45%      1.12s 28.21%  runtime.futex
+     0.07s  1.76% 62.22%      0.19s  4.79%  runtime.notesleep
+     0.05s  1.26% 63.48%      0.09s  2.27%  runtime.(*unwinder).resolveInternal
+     0.04s  1.01% 64.48%      0.67s 16.88%  bufio.(*Reader).Read
+     0.04s  1.01% 65.49%      0.05s  1.26%  runtime.(*mspan).writeHeapBitsSmall
+     0.04s  1.01% 66.50%      0.04s  1.01%  runtime.heapSetTypeSmallHeader
+     0.04s  1.01% 67.51%      0.04s  1.01%  runtime.memclrNoHeapPointers
+     0.04s  1.01% 68.51%      0.04s  1.01%  runtime.nextFreeFast (inline)
+     0.04s  1.01% 69.52%      0.12s  3.02%  runtime.selectgo
+     0.04s  1.01% 70.53%      0.07s  1.76%  runtime.stealWork
+     0.04s  1.01% 71.54%      0.04s  1.01%  runtime.step
+     0.03s  0.76% 72.29%      0.03s  0.76%  runtime.(*mcache).prepareForSweep
+     0.03s  0.76% 73.05%      0.03s  0.76%  runtime.nanotime (inline)
+     0.03s  0.76% 73.80%      0.03s  0.76%  runtime.pidleget
+     0.03s  0.76% 74.56%      0.05s  1.26%  runtime.scanblock
+     0.03s  0.76% 75.31%      0.03s  0.76%  runtime.spanClass.sizeclass (inline)
+     0.03s  0.76% 76.07%      0.03s  0.76%  runtime.stkbucket
+     0.02s   0.5% 76.57%      0.02s   0.5%  net.(*TCPConn).Read
+     0.02s   0.5% 77.08%      0.73s 18.39%  relayx/phase3/internal/protocol.DecodeInto
+     0.02s   0.5% 77.58%      1.06s 26.70%  relayx/phase3/internal/transport.(*Conn).readLoop
+     0.02s   0.5% 78.09%      0.02s   0.5%  runtime.cputicks
+     0.02s   0.5% 78.59%      0.85s 21.41%  runtime.findRunnable
+     0.02s   0.5% 79.09%      0.02s   0.5%  runtime.findfunc
+     0.02s   0.5% 79.60%      0.03s  0.76%  runtime.mallocgcSmallScanNoHeaderSC3
+     0.02s   0.5% 80.10%      0.02s   0.5%  runtime.memmove
+     0.02s   0.5% 80.60%      0.12s  3.02%  runtime.netpoll
+     0.02s   0.5% 81.11%      0.06s  1.51%  runtime.pcvalue
+     0.02s   0.5% 81.61%      0.05s  1.26%  runtime.scanObjectsSmall
+     0.02s   0.5% 82.12%      0.02s   0.5%  runtime.typePointers.next
+     0.02s   0.5% 82.62%      0.04s  1.01%  sync.(*Pool).Get
+     0.02s   0.5% 83.12%      0.02s   0.5%  time.Time.absSec
+     0.02s   0.5% 83.63%      0.02s   0.5%  time.runtimeNow
+     0.01s  0.25% 83.88%      0.59s 14.86%  internal/poll.(*FD).Read
+     0.01s  0.25% 84.13%      0.92s 23.17%  internal/poll.(*FD).Write

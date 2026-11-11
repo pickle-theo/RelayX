@@ -1,0 +1,28 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: delay
+Time: 2026-11-11 12:25:19 CST
+Showing nodes accounting for 120.28ms, 99.55% of 120.83ms total
+Dropped 122 nodes (cum <= 0.60ms)
+Showing top 20 nodes out of 68
+      flat  flat%   sum%        cum   cum%
+  120.28ms 99.55% 99.55%   120.28ms 99.55%  runtime.unlock (inline)
+         0     0% 99.55%    28.69ms 23.74%  bufio.(*Reader).Read
+         0     0% 99.55%     2.97ms  2.46%  bufio.NewReaderSize (inline)
+         0     0% 99.55%     3.35ms  2.77%  internal/poll.(*FD).Accept
+         0     0% 99.55%    28.71ms 23.76%  internal/poll.(*FD).Read
+         0     0% 99.55%     3.35ms  2.77%  internal/poll.accept
+         0     0% 99.55%    28.71ms 23.76%  internal/poll.ignoringEINTRIO (inline)
+         0     0% 99.55%    28.69ms 23.75%  io.ReadAtLeast
+         0     0% 99.55%    28.69ms 23.74%  io.ReadFull (inline)
+         0     0% 99.55%     6.68ms  5.53%  main.run.func3
+         0     0% 99.55%     3.35ms  2.77%  net.(*TCPListener).Accept
+         0     0% 99.55%     3.35ms  2.77%  net.(*TCPListener).accept
+         0     0% 99.55%    28.71ms 23.76%  net.(*conn).Read
+         0     0% 99.55%    28.71ms 23.76%  net.(*netFD).Read
+         0     0% 99.55%     3.35ms  2.77%  net.(*netFD).accept
+         0     0% 99.55%    28.70ms 23.75%  relayx/phase3/internal/protocol.DecodeInto
+         0     0% 99.55%    32.03ms 26.51%  relayx/phase3/internal/transport.(*Conn).readLoop
+         0     0% 99.55%    32.03ms 26.51%  relayx/phase3/internal/transport.(*Conn).run
+         0     0% 99.55%     6.68ms  5.53%  relayx/phase3/internal/transport.(*Server).Serve
+         0     0% 99.55%     3.33ms  2.76%  relayx/phase3/internal/transport.(*Server).handleConn

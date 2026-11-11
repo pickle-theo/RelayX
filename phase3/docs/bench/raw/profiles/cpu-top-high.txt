@@ -1,0 +1,49 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: cpu
+Time: 2026-11-11 12:27:07 CST
+Duration: 15s, Total samples = 11.38s (75.86%)
+Showing nodes accounting for 9.37s, 82.34% of 11.38s total
+Dropped 241 nodes (cum <= 0.06s)
+Showing top 40 nodes out of 142
+      flat  flat%   sum%        cum   cum%
+     3.93s 34.53% 34.53%      3.93s 34.53%  internal/runtime/syscall/linux.Syscall6
+     3.36s 29.53% 64.06%      3.36s 29.53%  runtime.futex
+     0.15s  1.32% 65.38%      0.44s  3.87%  runtime.selectgo
+     0.12s  1.05% 66.43%      0.27s  2.37%  runtime.pcvalue
+     0.09s  0.79% 67.22%      3.59s 31.55%  runtime.findRunnable
+     0.09s  0.79% 68.01%      0.12s  1.05%  runtime.sellock
+     0.08s   0.7% 68.72%      1.66s 14.59%  bufio.(*Reader).Read
+     0.08s   0.7% 69.42%      2.70s 23.73%  relayx/phase3/internal/transport.(*Conn).readLoop
+     0.08s   0.7% 70.12%      0.13s  1.14%  runtime.(*timers).cleanHead
+     0.08s   0.7% 70.83%      0.09s  0.79%  runtime.findfunc
+     0.08s   0.7% 71.53%      0.08s   0.7%  runtime.write1
+     0.07s  0.62% 72.14%      0.08s   0.7%  runtime.gopark
+     0.07s  0.62% 72.76%      0.07s  0.62%  runtime.memclrNoHeapPointers
+     0.07s  0.62% 73.37%      0.07s  0.62%  runtime.nanotime (inline)
+     0.07s  0.62% 73.99%      0.10s  0.88%  runtime.step
+     0.06s  0.53% 74.52%      4.15s 36.47%  relayx/phase3/internal/transport.(*Conn).writeLoop
+     0.06s  0.53% 75.04%      0.31s  2.72%  runtime.lock2
+     0.06s  0.53% 75.57%      0.47s  4.13%  runtime.notesleep
+     0.06s  0.53% 76.10%      0.06s  0.53%  runtime.osyield
+     0.06s  0.53% 76.63%      0.06s  0.53%  runtime.procyieldAsm
+     0.05s  0.44% 77.07%      0.10s  0.88%  runtime.mallocgcSmallNoScanSC3
+     0.05s  0.44% 77.50%      0.14s  1.23%  runtime.stealWork
+     0.05s  0.44% 77.94%      1.21s 10.63%  runtime.unlock2
+     0.04s  0.35% 78.30%      1.53s 13.44%  internal/poll.(*FD).Read
+     0.04s  0.35% 78.65%      0.39s  3.43%  runtime.mallocgc
+     0.04s  0.35% 79.00%      0.06s  0.53%  runtime.mallocgcSmallScanNoHeaderSC3
+     0.04s  0.35% 79.35%      0.06s  0.53%  runtime.scanObjectsSmall
+     0.03s  0.26% 79.61%      0.23s  2.02%  internal/poll.runtime_pollSetDeadline
+     0.03s  0.26% 79.88%      1.86s 16.34%  relayx/phase3/internal/protocol.DecodeInto
+     0.03s  0.26% 80.14%      0.08s   0.7%  runtime.(*unwinder).resolveInternal
+     0.03s  0.26% 80.40%      0.22s  1.93%  runtime.mallocgcSmallScanNoHeader
+     0.03s  0.26% 80.67%      0.69s  6.06%  runtime.reentersyscall
+     0.03s  0.26% 80.93%      3.91s 34.36%  runtime.schedule
+     0.03s  0.26% 81.20%      0.11s  0.97%  sync.(*Pool).Get
+     0.03s  0.26% 81.46%      3.55s 31.20%  syscall.RawSyscall6
+     0.02s  0.18% 81.63%      2.96s 26.01%  internal/poll.(*FD).Write
+     0.02s  0.18% 81.81%      1.68s 14.76%  io.ReadAtLeast
+     0.02s  0.18% 81.99%      0.69s  6.06%  relayx/phase3/internal/transport.(*Conn).Send
+     0.02s  0.18% 82.16%      3.43s 30.14%  relayx/phase3/internal/transport.(*Conn).writeBatch
+     0.02s  0.18% 82.34%      0.19s  1.67%  runtime.(*timer).modify

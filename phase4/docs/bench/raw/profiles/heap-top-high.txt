@@ -1,0 +1,27 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: inuse_space
+Time: 2026-11-11 12:27:22 CST
+Showing nodes accounting for 58.27MB, 100% of 58.27MB total
+Showing top 20 nodes out of 58
+      flat  flat%   sum%        cum   cum%
+   30.17MB 51.78% 51.78%    30.17MB 51.78%  relayx/phase3/internal/transport.newConn
+   17.57MB 30.15% 81.93%    17.57MB 30.15%  bufio.NewReaderSize
+       6MB 10.30% 92.23%        6MB 10.30%  runtime.mallocgc
+    1.50MB  2.57% 94.81%     1.50MB  2.57%  syscall.anyToSockaddr
+       1MB  1.72% 96.52%        1MB  1.72%  time.NewTimer
+    0.51MB  0.88% 97.41%     0.51MB  0.88%  github.com/jackc/pgx/v5/internal/stmtcache.NewLRUCache (inline)
+    0.51MB  0.88% 98.28%     0.51MB  0.88%  internal/poll.runtime_pollSetDeadline
+    0.50MB  0.86% 99.14%     2.01MB  3.45%  relayx/phase3/internal/transport.(*Conn).writeLoop
+    0.50MB  0.86%   100%     0.50MB  0.86%  relayx/phase3/internal/protocol.DecodeInto
+         0     0%   100%     0.51MB  0.88%  database/sql.(*DB).PingContext
+         0     0%   100%     0.51MB  0.88%  database/sql.(*DB).PingContext.func1
+         0     0%   100%     0.51MB  0.88%  database/sql.(*DB).conn
+         0     0%   100%     0.51MB  0.88%  database/sql.(*DB).retry
+         0     0%   100%     0.51MB  0.88%  github.com/jackc/pgx/v5.ConnectConfig
+         0     0%   100%     0.51MB  0.88%  github.com/jackc/pgx/v5.connect
+         0     0%   100%     0.51MB  0.88%  github.com/jackc/pgx/v5/stdlib.(*driverConnector).Connect
+         0     0%   100%        1MB  1.72%  internal/poll.(*FD).Accept
+         0     0%   100%     0.51MB  0.88%  internal/poll.(*FD).SetWriteDeadline (inline)
+         0     0%   100%        1MB  1.72%  internal/poll.accept
+         0     0%   100%     0.51MB  0.88%  internal/poll.setDeadlineImpl

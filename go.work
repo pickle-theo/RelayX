@@ -1,0 +1,13 @@
+// RelayX 多阶段工作区
+//
+// 每个 Phase 是独立 Go module 子项目，互不依赖。
+// 新增阶段后在此追加 use 指令（或执行 go work use ./phase0.5）。
+
+go 1.27
+
+use ./phase0
+use ./phase0.5
+use ./phase1
+use ./phase2
+use ./phase3
+use ./phase4

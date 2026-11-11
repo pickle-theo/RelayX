@@ -1,0 +1,5 @@
+logged in as bob-1111143114-b/d1 session=3
+connected to 127.0.0.1:5001 as demo
+pull_done count=0 cursor=0 has_more=false
+send_ack status=accepted message_id=7 msg=
+send_ack status=accepted message_id=8 msg=

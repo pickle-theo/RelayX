@@ -1,0 +1,10 @@
+﻿File: relayx-gw
+Build ID: f8d33347349b7f68bd14269124f2a9c9f32f8912
+Type: delay
+Time: 2026-11-11 13:11:15 CST
+Showing nodes accounting for 5.73hrs, 100% of 5.73hrs total
+Dropped 57 nodes (cum <= 0.03hrs)
+      flat  flat%   sum%        cum   cum%
+   5.73hrs   100%   100%    5.73hrs   100%  runtime.selectgo
+         0     0%   100%    5.72hrs 99.69%  relayx/phase3/internal/transport.(*Conn).run.gowrap1
+         0     0%   100%    5.72hrs 99.69%  relayx/phase3/internal/transport.(*Conn).writeLoop

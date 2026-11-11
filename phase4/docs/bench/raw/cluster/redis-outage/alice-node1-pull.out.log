@@ -1,0 +1,5 @@
+logged in as alice/d1 session=3
+connected to 127.0.0.1:5001 as demo
+deliver from=bob-1111143134/d1 message_id=9 body=demo#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=bob-1111143134/d1 message_id=10 body=demo#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+pull_done count=2 cursor=10 has_more=false

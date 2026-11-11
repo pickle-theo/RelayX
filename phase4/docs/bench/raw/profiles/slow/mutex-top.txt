@@ -1,0 +1,26 @@
+﻿File: relayx-gw
+Build ID: f8d33347349b7f68bd14269124f2a9c9f32f8912
+Type: delay
+Time: 2026-11-11 13:11:15 CST
+Showing nodes accounting for 1291.98ms, 99.59% of 1297.25ms total
+Dropped 154 nodes (cum <= 6.49ms)
+Showing top 18 nodes out of 34
+      flat  flat%   sum%        cum   cum%
+ 1291.98ms 99.59% 99.59%  1291.98ms 99.59%  runtime.unlock (inline)
+         0     0% 99.59%    58.05ms  4.47%  bufio.(*Reader).Read
+         0     0% 99.59%    58.17ms  4.48%  internal/poll.(*FD).Read
+         0     0% 99.59%    58.17ms  4.48%  internal/poll.ignoringEINTRIO (inline)
+         0     0% 99.59%    58.17ms  4.48%  io.ReadAtLeast
+         0     0% 99.59%    58.05ms  4.47%  io.ReadFull (inline)
+         0     0% 99.59%    58.17ms  4.48%  net.(*conn).Read
+         0     0% 99.59%    58.17ms  4.48%  net.(*netFD).Read
+         0     0% 99.59%     6.55ms  0.51%  relayx/phase3/internal/gateway.(*Handler).Handle
+         0     0% 99.59%    58.05ms  4.47%  relayx/phase3/internal/protocol.DecodeInto
+         0     0% 99.59%    64.61ms  4.98%  relayx/phase3/internal/transport.(*Conn).readLoop
+         0     0% 99.59%    64.61ms  4.98%  relayx/phase3/internal/transport.(*Conn).run
+         0     0% 99.59%    64.61ms  4.98%  relayx/phase3/internal/transport.(*Server).handleConn.func2
+         0     0% 99.59%    57.73ms  4.45%  runtime.entersyscall
+         0     0% 99.59%    57.73ms  4.45%  runtime.entersyscallWakeSysmon
+         0     0% 99.59%  1135.83ms 87.56%  runtime.findRunnable
+         0     0% 99.59%    32.58ms  2.51%  runtime.incidlelocked
+         0     0% 99.59%   761.57ms 58.71%  runtime.injectglist

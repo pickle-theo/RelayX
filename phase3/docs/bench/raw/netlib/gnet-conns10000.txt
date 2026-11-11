@@ -1,0 +1,58 @@
+RelayX Phase 3 load test
+finished_at : 2026-11-11T04:56:32Z
+elapsed     : 40.31s
+addr        : 127.0.0.1:19001
+mode        : echo
+target      : -
+conns       : 10000 (ramp 0s)
+duration    : 40s
+interval    : 1s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 5s
+
+[scenario]
+name                : default
+payload_size        : 64 bytes
+slow_consumers      : 0
+pings_received      : 0
+reconnect_attempts  : 0
+reconnect_succeeded : 0
+reconnect_failed    : 0
+reconnect_retries   : 0
+reconnect_in_window : n/a
+
+[connections]
+succeeded    : 10000
+failed       : 0
+success_rate : 100.00%
+
+[messages]
+sent   : 390182
+echoed : 390182
+missed : 0
+
+[errors]
+connect_failures  : 0
+login_failures    : 0
+route_errors      : 0
+timeouts          : 0
+decode_errors     : 0
+unexpected_frames : 0
+write_errors      : 0
+
+[rtt ms]
+samples : 390182
+p50     : 0.357
+p90     : 4.357
+p99     : 36.134
+max     : 88.363
+avg     : 2.391
+
+[client process]
+goroutines_pre_shutdown : 30001
+goroutines              : 1
+heap_alloc_mb           : 18.10
+heap_sys_mb             : 352.19
+rss_mb                  : 360.96
+rss_per_conn_kb         : 36.96

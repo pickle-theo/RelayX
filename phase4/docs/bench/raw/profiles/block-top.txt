@@ -1,0 +1,10 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: delay
+Time: 2026-11-11 12:25:19 CST
+Showing nodes accounting for 43.42hrs, 100% of 43.42hrs total
+Dropped 45 nodes (cum <= 0.22hrs)
+      flat  flat%   sum%        cum   cum%
+  43.42hrs   100%   100%   43.42hrs   100%  runtime.selectgo
+         0     0%   100%   43.40hrs   100%  relayx/phase3/internal/transport.(*Conn).run.gowrap1
+         0     0%   100%   43.40hrs   100%  relayx/phase3/internal/transport.(*Conn).writeLoop

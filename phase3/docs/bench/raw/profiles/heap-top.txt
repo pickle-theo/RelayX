@@ -1,0 +1,32 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: inuse_space
+Time: 2026-11-11 12:25:18 CST
+Showing nodes accounting for 70.29MB, 100% of 70.29MB total
+Showing top 25 nodes out of 73
+      flat  flat%   sum%        cum   cum%
+   35.18MB 50.05% 50.05%    35.68MB 50.76%  relayx/phase3/internal/transport.newConn
+   23.09MB 32.85% 82.90%    23.09MB 32.85%  bufio.NewReaderSize
+       6MB  8.54% 91.44%        6MB  8.54%  runtime.mallocgc
+    2.50MB  3.56% 95.00%     2.50MB  3.56%  relayx/phase3/internal/transport.(*Conn).writeLoop
+    0.51MB  0.73% 95.73%     0.51MB  0.73%  github.com/jackc/pgx/v5/internal/stmtcache.NewLRUCache (inline)
+    0.50MB  0.71% 96.44%     0.50MB  0.71%  log/slog.(*commonHandler).clone (inline)
+    0.50MB  0.71% 97.15%     0.50MB  0.71%  net.newFD
+    0.50MB  0.71% 97.87%     0.50MB  0.71%  net.sockaddrToTCP
+    0.50MB  0.71% 98.58%     0.50MB  0.71%  os/signal.Notify.func1
+    0.50MB  0.71% 99.29%     0.50MB  0.71%  syscall.anyToSockaddr
+    0.50MB  0.71%   100%     0.50MB  0.71%  github.com/jackc/pgx/v5/pgconn.(*PgConn).makeCommandTag (inline)
+         0     0%   100%     0.51MB  0.73%  database/sql.(*DB).QueryContext
+         0     0%   100%     0.51MB  0.73%  database/sql.(*DB).QueryContext.func1
+         0     0%   100%     0.51MB  0.73%  database/sql.(*DB).conn
+         0     0%   100%     0.51MB  0.73%  database/sql.(*DB).query
+         0     0%   100%     0.51MB  0.73%  database/sql.(*DB).retry
+         0     0%   100%     0.50MB  0.71%  database/sql.(*Tx).Commit
+         0     0%   100%     0.50MB  0.71%  database/sql.(*Tx).Commit.func1
+         0     0%   100%     0.50MB  0.71%  database/sql.withLock
+         0     0%   100%     0.50MB  0.71%  github.com/jackc/pgx/v5.(*Conn).Exec
+         0     0%   100%     0.50MB  0.71%  github.com/jackc/pgx/v5.(*Conn).exec
+         0     0%   100%     0.50MB  0.71%  github.com/jackc/pgx/v5.(*Conn).execSimpleProtocol
+         0     0%   100%     0.50MB  0.71%  github.com/jackc/pgx/v5.(*dbTx).Commit
+         0     0%   100%     0.51MB  0.73%  github.com/jackc/pgx/v5.ConnectConfig
+         0     0%   100%     0.51MB  0.73%  github.com/jackc/pgx/v5.connect

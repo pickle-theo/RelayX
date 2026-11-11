@@ -1,0 +1,45 @@
+RelayX Phase 0 load test
+finished_at : 2026-11-10T23:52:10+08:00
+elapsed     : 1m0.108s
+addr        : 127.0.0.1:19301
+mode        : route
+target      : self
+conns       : 1000 (ramp 5s)
+duration    : 1m0s
+interval    : 1s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 5s
+
+[connections]
+succeeded    : 1000
+failed       : 0
+success_rate : 100.00%
+
+[messages]
+sent   : 57003
+delivered : 57003
+missed : 0
+
+[errors]
+connect_failures  : 0
+login_failures    : 0
+route_errors      : 0
+timeouts          : 0
+decode_errors     : 0
+unexpected_frames : 0
+write_errors      : 0
+
+[rtt ms]
+samples : 57003
+p50     : 0.000
+p90     : 0.000
+p99     : 0.552
+max     : 5.763
+avg     : 0.019
+
+[client process]
+goroutines_pre_shutdown : 2001
+goroutines              : 1
+heap_alloc_mb           : 3.26
+heap_sys_mb             : 39.19

@@ -1,0 +1,4 @@
+logged in as alice/d1 session=1
+connected to 127.0.0.1:5002 as demo
+pull_done count=0 cursor=0 has_more=false
+send_ack status=accepted message_id=4 msg=

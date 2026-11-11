@@ -1,0 +1,40 @@
+scenario: smoke
+started_at: 2026-11-11T14:30:54+08:00
+finished_at: 2026-11-11T14:31:08+08:00
+duration_s: 13.27
+host: WIN-1DPKB4M7I5M  os: Microsoft Windows NT 10.0.26300.0
+go: go version go1.27.3 windows/amd64
+postgres_container: relayx-phase2-pg
+redis_container: relayx-phase4-redis
+param: sender_user: bob-1111143055 (run-scoped, avoids the (from_user, client_msg_id) idempotency key)
+param: nodes: node1 127.0.0.1:5001/9101, node2 127.0.0.1:5002/9102, node3 127.0.0.1:5003/9103
+param: gateway_args: -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s
+process: gateway-node1 args: -addr 127.0.0.1:5001 -node-id node1 -node-addr 127.0.0.1:9101 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: gateway-node2 args: -addr 127.0.0.1:5002 -node-id node2 -node-addr 127.0.0.1:9102 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: gateway-node3 args: -addr 127.0.0.1:5003 -node-id node3 -node-addr 127.0.0.1:9103 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: alice-node3 args: -addr 127.0.0.1:5003 -user alice -device d1
+process: bob-node1-send args: -addr 127.0.0.1:5001 -user bob-1111143055 -device d1 -to alice -count 3 -interval 300ms
+process: alice-node2-dup-login args: -addr 127.0.0.1:5002 -user alice -device d1 -to bob-1111143055 -count 1 -interval 100ms
+process: alice-node2-live args: -addr 127.0.0.1:5002 -user alice -device d1
+
+PASS: docker is available
+PASS: PostgreSQL container relayx-phase2-pg is running
+PASS: Redis container is running and answers PONG
+PASS: bin/gateway.exe and bin/client.exe built
+PASS: cluster ports 5001-5003 and 9101-9103 are free
+PASS: 3 gateway nodes healthy (6 ports) in 1.48s
+PASS: alice/d1 logged in on node3 (127.0.0.1:5003)
+INFO: baseline deliveries of alice/d1 from bob-1111143055 before the test: 0
+PASS: bob sender on node1 exited with code 0
+PASS: bob received 3 accepted SEND_ACKs (got 3)
+PASS: node3 received 3 new cross-node delivers from bob-1111143055/d1 in 0.02s
+PASS: node3 receiver observed 'server closed connection' after the node2 login
+PASS: kicked node3 receiver exited within 0.47s (<= 8s)
+INFO: kicked receiver exit code: 0
+PASS: alice duplicate-login client on node2 exited with code 0
+INFO: the duplicate-login client deletes its route on exit; a live node2 session is asserted instead
+PASS: Redis route for alice points to node2 (found: node2)
+PASS: Redis route for alice no longer points to node3
+
+exit_code: 0
+evidence_files: alice-node2-dup-login.cmd, alice-node2-dup-login.err.log, alice-node2-dup-login.out.log, alice-node2-live.cmd, alice-node2-live.err.log, alice-node2-live.out.log, alice-node3.cmd, alice-node3.err.log, alice-node3.out.log, bob-node1-send.cmd, bob-node1-send.err.log, bob-node1-send.out.log, gateway-node1.err.log, gateway-node1.out.log, gateway-node2.err.log, gateway-node2.out.log, gateway-node3.err.log, gateway-node3.out.log

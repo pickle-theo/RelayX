@@ -1,0 +1,193 @@
+# RelayX Phase 3 bench report
+
+generated_at: 2026-11-11T04:15:22Z
+scenario: idle
+effective_mode: login
+exit_code: 1
+
+== bench host ==
+started_at: 2026-11-11T04:15:22Z
+docker_client_version: 29.9.2
+docker_server_version: 29.9.2
+host_os: Microsoft Windows 11 Pro 10.0.26300
+host_cpu: Intel(R) Core(TM) i3-10105 CPU @ 3.70GHz
+host_cpu_cores: 4 (logical 8)
+host_memory_gb: 15.8
+repo_root: C:\Users\Administrator\Documents\trae_projects\RelayX\phase3
+runner: bench/run.ps1 -> golang:1.27 -> bash bench/run.sh
+out: docs/bench/raw/baseline-100k-idle.txt
+
+## parameters
+```
+CONNS=100000
+DURATION=35s
+INTERVAL=1s
+RAMP=20s
+TIMEOUT=10s
+SCENARIO=idle
+PAYLOAD=64
+MODE=auto
+ACK=both
+SLOW_RATIO=0.1
+RECONNECT_AFTER=10s
+RECONNECT_WINDOW=5s
+PROFILE=0
+ADDR=127.0.0.1:19330
+PPROF_ADDR=127.0.0.1:16060
+DSN=postgres://relayx:relayx@host.docker.internal:5432/relayx?sslmode=disable
+STATS_INTERVAL=5s
+OUT=/app/docs/bench/raw/baseline-100k-idle.txt
+ulimit_nofile=1048576 (requested 1048576)
+```
+
+## loadtest output (raw)
+```
+RelayX Phase 3 load test
+finished_at : 2026-11-11T04:16:57Z
+elapsed     : 1m33.158s
+addr        : 127.0.0.1:19330
+mode        : login
+target      : -
+conns       : 100000 (ramp 20s)
+duration    : 35s
+interval    : 1s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 10s
+
+[scenario]
+name                : idle
+payload_size        : 64 bytes
+slow_consumers      : 0
+pings_received      : 12588
+reconnect_attempts  : 0
+reconnect_succeeded : 0
+reconnect_failed    : 0
+reconnect_retries   : 0
+reconnect_in_window : n/a
+
+[connections]
+succeeded    : 39740
+failed       : 60260
+success_rate : 39.74%
+
+[messages]
+sent   : 0
+echoed : 0
+missed : 0
+
+[errors]
+connect_failures  : 60260
+login_failures    : 14065
+route_errors      : 0
+timeouts          : 0
+decode_errors     : 0
+unexpected_frames : 0
+write_errors      : 0
+first_error       : conn 60348: dial: dial tcp 127.0.0.1:19330: connect: cannot assign requested address
+
+[rtt ms]
+samples: 0
+p50     : 0.000
+p90     : 0.000
+p99     : 0.000
+max     : 0.000
+avg     : 0.000
+
+[client process]
+goroutines_pre_shutdown : 104584
+goroutines              : 1
+heap_alloc_mb           : 54.55
+heap_sys_mb             : 999.91
+rss_mb                  : 1032.16
+rss_per_conn_kb         : 10.57
+```
+
+## gateway stats (tail)
+```
+2026/11/11 04:15:29 WARN gateway stats: count pending deliveries failed error="store: count pending deliveries: context deadline exceeded"
+2026/11/11 04:15:29 INFO gateway stats goroutines=35418 heap_alloc_mb=237.44 heap_sys_mb=245.31 gc_cycles=9 gc_pause_ms=3.52 active_conns=17706 active_sessions=7978 messages_accepted=0 messages_duplicate=0 deliveries_pending=-1 deliveries_retried=0 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:15:33 INFO gateway stats goroutines=45833 heap_alloc_mb=336.71 heap_sys_mb=346.22 gc_cycles=9 gc_pause_ms=3.52 active_conns=22913 active_sessions=9589 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:15:38 INFO gateway stats goroutines=56471 heap_alloc_mb=386.87 heap_sys_mb=430.28 gc_cycles=10 gc_pause_ms=0.15 active_conns=28232 active_sessions=10076 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:15:43 INFO gateway stats goroutines=56449 heap_alloc_mb=389.66 heap_sys_mb=429.75 gc_cycles=10 gc_pause_ms=0.15 active_conns=28221 active_sessions=10128 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:15:48 INFO gateway stats goroutines=56053 heap_alloc_mb=396.29 heap_sys_mb=428.53 gc_cycles=10 gc_pause_ms=0.15 active_conns=28023 active_sessions=10285 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=13
+2026/11/11 04:15:53 INFO gateway stats goroutines=55026 heap_alloc_mb=421.69 heap_sys_mb=443.44 gc_cycles=10 gc_pause_ms=0.15 active_conns=27509 active_sessions=10634 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:15:58 INFO gateway stats goroutines=54145 heap_alloc_mb=471.7 heap_sys_mb=489.63 gc_cycles=10 gc_pause_ms=0.15 active_conns=27067 active_sessions=11038 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=15
+2026/11/11 04:16:03 INFO gateway stats goroutines=56371 heap_alloc_mb=527.32 heap_sys_mb=539.03 gc_cycles=10 gc_pause_ms=0.15 active_conns=28182 active_sessions=11322 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=11
+2026/11/11 04:16:08 INFO gateway stats goroutines=56439 heap_alloc_mb=550.07 heap_sys_mb=561.66 gc_cycles=10 gc_pause_ms=0.15 active_conns=28215 active_sessions=11413 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:13 INFO gateway stats goroutines=56307 heap_alloc_mb=568.03 heap_sys_mb=581.5 gc_cycles=10 gc_pause_ms=0.15 active_conns=28149 active_sessions=11454 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:18 INFO gateway stats goroutines=56327 heap_alloc_mb=586.78 heap_sys_mb=601.88 gc_cycles=10 gc_pause_ms=0.15 active_conns=28160 active_sessions=11341 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:23 INFO gateway stats goroutines=56453 heap_alloc_mb=612.36 heap_sys_mb=626.34 gc_cycles=10 gc_pause_ms=0.15 active_conns=28223 active_sessions=11253 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:28 INFO gateway stats goroutines=56469 heap_alloc_mb=622.29 heap_sys_mb=638.22 gc_cycles=10 gc_pause_ms=0.15 active_conns=28231 active_sessions=11226 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:33 INFO gateway stats goroutines=56463 heap_alloc_mb=623.32 heap_sys_mb=638.25 gc_cycles=10 gc_pause_ms=0.15 active_conns=28228 active_sessions=11211 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:38 INFO gateway stats goroutines=56471 heap_alloc_mb=623.56 heap_sys_mb=638.28 gc_cycles=10 gc_pause_ms=0.15 active_conns=28232 active_sessions=11205 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:43 INFO gateway stats goroutines=55199 heap_alloc_mb=623.72 heap_sys_mb=639.63 gc_cycles=10 gc_pause_ms=0.15 active_conns=27520 active_sessions=10522 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:16:49 WARN gateway stats: count pending deliveries failed error="store: count pending deliveries: context deadline exceeded"
+2026/11/11 04:16:49 INFO gateway stats goroutines=44046 heap_alloc_mb=365.34 heap_sys_mb=814.63 gc_cycles=11 gc_pause_ms=31.25 active_conns=22020 active_sessions=1308 messages_accepted=0 messages_duplicate=0 deliveries_pending=-1 deliveries_retried=0 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:16:54 WARN gateway stats: count pending deliveries failed error="store: count pending deliveries: context deadline exceeded"
+2026/11/11 04:16:54 INFO gateway stats goroutines=30602 heap_alloc_mb=529.82 heap_sys_mb=815.16 gc_cycles=11 gc_pause_ms=31.25 active_conns=15300 active_sessions=825 messages_accepted=0 messages_duplicate=0 deliveries_pending=-1 deliveries_retried=0 deliveries_expired=0 db_open_conns=16
+```
+
+## gateway log (tail)
+```
+2026/11/11 04:16:57 INFO session closed session_id=25679 user_id=load-91755 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=75582 remote=127.0.0.1:44030 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25684 user_id=load-90090 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=73812 remote=127.0.0.1:56786 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25680 user_id=load-93114 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=76930 remote=127.0.0.1:35034 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25677 user_id=load-92353 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=77064 remote=127.0.0.1:34352 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25681 user_id=load-91541 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=75443 remote=127.0.0.1:46622 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25682 user_id=load-81644 device_id=d0
+2026/11/11 04:16:57 INFO session closed session_id=25685 user_id=load-86380 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=71285 remote=127.0.0.1:53396 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25675 user_id=load-91715 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=75374 remote=127.0.0.1:40496 reason="peer closed"
+2026/11/11 04:16:57 INFO connection closed conn_id=72006 remote=127.0.0.1:40662 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25683 user_id=load-91079 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=74988 remote=127.0.0.1:39534 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25678 user_id=load-90812 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=74360 remote=127.0.0.1:54284 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25687 user_id=load-91323 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=75884 remote=127.0.0.1:47890 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25688 user_id=load-91598 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=74986 remote=127.0.0.1:37106 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25689 user_id=load-89900 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=73557 remote=127.0.0.1:36896 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25690 user_id=load-87357 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=71219 remote=127.0.0.1:51894 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25694 user_id=load-91326 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=75894 remote=127.0.0.1:59342 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25691 user_id=load-91842 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=75259 remote=127.0.0.1:53976 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25692 user_id=load-87974 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=72175 remote=127.0.0.1:36656 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25693 user_id=load-87297 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=71488 remote=127.0.0.1:54064 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25696 user_id=load-92366 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=77086 remote=127.0.0.1:41494 reason="peer closed"
+2026/11/11 04:16:57 INFO session closed session_id=25695 user_id=load-92658 device_id=d0
+2026/11/11 04:16:57 INFO connection closed conn_id=76960 remote=127.0.0.1:39452 reason="peer closed"
+```
+
+## build log
+```
+```
+
+## environment
+```
+go: go version go1.27.3 linux/amd64
+uname: Linux b7a3e7c319df 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+nproc: 8
+meminfo:
+  MemTotal:        8052384 kB
+  MemFree:         4400520 kB
+  MemAvailable:    6769960 kB
+  Buffers:          112312 kB
+  Cached:          2516108 kB
+ulimit_nofile: 1048576 (requested 1048576)
+ip_local_port_range: 32768	60999
+gateway_alive_at_end: yes
+```

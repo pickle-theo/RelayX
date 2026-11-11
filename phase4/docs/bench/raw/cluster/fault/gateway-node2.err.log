@@ -1,0 +1,16 @@
+2026/11/11 14:31:20 INFO store: migrations complete applied=0 skipped=1
+2026/11/11 14:31:20 INFO database ready max_open_conns=64 max_idle_conns=8
+2026/11/11 14:31:20 INFO cluster enabled node_id=node2 node_addr=127.0.0.1:9102 advertise_addr=127.0.0.1:9102 redis_addr=127.0.0.1:6379
+2026/11/11 14:31:20 INFO delivery worker started interval=1s max_attempts=5
+2026/11/11 14:31:20 INFO gateway listening addr=127.0.0.1:5002
+2026/11/11 14:31:20 INFO connection accepted conn_id=1 remote=127.0.0.1:59162
+2026/11/11 14:31:20 INFO connection closed conn_id=1 remote=127.0.0.1:59162 reason="peer closed"
+2026/11/11 14:31:20 WARN node handshake read failed remote=127.0.0.1:59167 error=EOF
+2026/11/11 14:31:21 INFO node connected node_id=node3 addr=127.0.0.1:59171 inbound=true
+2026/11/11 14:31:22 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=11 heap_alloc_mb=1.08 heap_sys_mb=7.63 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:23 INFO node disconnected node_id=node3 addr=127.0.0.1:59171 reason="read error: read tcp 127.0.0.1:9102->127.0.0.1:59171: wsarecv: An existing connection was forcibly closed by the remote host."
+2026/11/11 14:31:24 INFO gateway stats node_id=node2 cluster_peers=0 goroutines=9 heap_alloc_mb=1.2 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:26 INFO gateway stats node_id=node2 cluster_peers=0 goroutines=9 heap_alloc_mb=1.21 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:27 INFO connection accepted conn_id=2 remote=127.0.0.1:59180
+2026/11/11 14:31:27 WARN node dial failed node_id=node1 addr=127.0.0.1:9101 error="cluster: dial 127.0.0.1:9101: dial tcp 127.0.0.1:9101: connectex: No connection could be made because the target machine actively refused it."
+2026/11/11 14:31:27 WARN gateway: kick forward failed node_id=node1 user_id=alice device_id=d1 error="cluster: dial 127.0.0.1:9101: dial tcp 127.0.0.1:9101: connectex: No connection could be made because the target machine actively refused it."

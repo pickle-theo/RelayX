@@ -1,0 +1,174 @@
+# RelayX Phase 3 bench report
+
+generated_at: 2026-11-11T04:04:59Z
+scenario: slow-consumer
+effective_mode: echo
+exit_code: 0
+
+== bench host ==
+started_at: 2026-11-11T04:04:58Z
+docker_client_version: 29.9.2
+docker_server_version: 29.9.2
+host_os: Microsoft Windows 11 Pro 10.0.26300
+host_cpu: Intel(R) Core(TM) i3-10105 CPU @ 3.70GHz
+host_cpu_cores: 4 (logical 8)
+host_memory_gb: 15.8
+repo_root: C:\Users\Administrator\Documents\trae_projects\RelayX\phase3
+runner: bench/run.ps1 -> golang:1.27 -> bash bench/run.sh
+out: docs/bench/raw/baseline-10k-slow.txt
+
+## parameters
+```
+CONNS=10000
+DURATION=40s
+INTERVAL=5s
+RAMP=15s
+SCENARIO=slow-consumer
+PAYLOAD=64
+MODE=echo
+ACK=both
+PROFILE=0
+ADDR=127.0.0.1:19330
+PPROF_ADDR=127.0.0.1:16060
+DSN=postgres://relayx:relayx@host.docker.internal:5432/relayx?sslmode=disable
+STATS_INTERVAL=5s
+OUT=/app/docs/bench/raw/baseline-10k-slow.txt
+ulimit_nofile=1048576 (requested 1048576)
+```
+
+## loadtest output (raw)
+```
+RelayX Phase 3 load test
+finished_at : 2026-11-11T04:05:40Z
+elapsed     : 40.214s
+addr        : 127.0.0.1:19330
+mode        : login
+target      : -
+conns       : 10000 (ramp 15s)
+duration    : 40s
+interval    : 5s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 5s
+
+[scenario]
+name                : slow-consumer
+payload_size        : 64 bytes
+slow_consumers      : 1000
+pings_received      : 5717
+reconnect_attempts  : 0
+reconnect_succeeded : 0
+reconnect_failed    : 0
+reconnect_in_window : n/a
+
+[connections]
+succeeded    : 10000
+failed       : 0
+success_rate : 100.00%
+
+[messages]
+sent   : 53142
+echoed : 53142
+missed : 0
+
+[errors]
+connect_failures  : 0
+login_failures    : 0
+route_errors      : 0
+timeouts          : 0
+decode_errors     : 0
+unexpected_frames : 0
+write_errors      : 0
+
+[rtt ms]
+samples : 53142
+p50     : 0.227
+p90     : 0.361
+p99     : 1.014
+max     : 149.652
+avg     : 0.480
+
+[client process]
+goroutines_pre_shutdown : 28001
+goroutines              : 1
+heap_alloc_mb           : 14.12
+heap_sys_mb             : 245.22
+rss_mb                  : 258.39
+rss_per_conn_kb         : 26.46
+```
+
+## gateway stats (tail)
+```
+2026/11/11 04:05:05 INFO gateway stats goroutines=6397 heap_alloc_mb=46.94 heap_sys_mb=53.88 gc_cycles=8 gc_pause_ms=0.21 active_conns=3195 active_sessions=3193 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:10 INFO gateway stats goroutines=13041 heap_alloc_mb=98.75 heap_sys_mb=106.72 gc_cycles=9 gc_pause_ms=0.15 active_conns=6517 active_sessions=6514 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:15 INFO gateway stats goroutines=19691 heap_alloc_mb=142.56 heap_sys_mb=155.91 gc_cycles=10 gc_pause_ms=0.21 active_conns=9842 active_sessions=9841 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:20 INFO gateway stats goroutines=20007 heap_alloc_mb=149.36 heap_sys_mb=161.94 gc_cycles=10 gc_pause_ms=0.21 active_conns=10000 active_sessions=10000 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:25 INFO gateway stats goroutines=20007 heap_alloc_mb=153.3 heap_sys_mb=165.94 gc_cycles=10 gc_pause_ms=0.21 active_conns=10000 active_sessions=10000 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:30 INFO gateway stats goroutines=20007 heap_alloc_mb=157.24 heap_sys_mb=169.94 gc_cycles=10 gc_pause_ms=0.21 active_conns=10000 active_sessions=10000 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:35 INFO gateway stats goroutines=20007 heap_alloc_mb=161.48 heap_sys_mb=173.94 gc_cycles=10 gc_pause_ms=0.21 active_conns=10000 active_sessions=10000 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+2026/11/11 04:05:40 INFO gateway stats goroutines=20007 heap_alloc_mb=165.81 heap_sys_mb=177.91 gc_cycles=10 gc_pause_ms=0.21 active_conns=10000 active_sessions=10000 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=8
+```
+
+## gateway log (tail)
+```
+2026/11/11 04:05:40 INFO connection closed conn_id=280 remote=127.0.0.1:49838 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49838: read: connection reset by peer"
+2026/11/11 04:05:40 INFO connection closed conn_id=611 remote=127.0.0.1:52948 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:52948: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=609 user_id=load-608 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=610 remote=127.0.0.1:52934 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:52934: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=251 user_id=load-254 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=295 remote=127.0.0.1:49996 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49996: read: connection reset by peer"
+2026/11/11 04:05:40 INFO connection closed conn_id=252 remote=127.0.0.1:49582 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49582: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=6695 user_id=load-6690 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=6696 remote=127.0.0.1:36838 reason="peer closed"
+2026/11/11 04:05:40 INFO session closed session_id=235 user_id=load-234 device_id=d0
+2026/11/11 04:05:40 INFO session closed session_id=278 user_id=load-283 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=284 remote=127.0.0.1:49900 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49900: read: connection reset by peer"
+2026/11/11 04:05:40 INFO connection closed conn_id=3370 remote=127.0.0.1:34856 reason="peer closed"
+2026/11/11 04:05:40 INFO session closed session_id=3362 user_id=load-3361 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=236 remote=127.0.0.1:49418 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49418: read: connection reset by peer"
+2026/11/11 04:05:40 INFO connection closed conn_id=3363 remote=127.0.0.1:34794 reason="peer closed"
+2026/11/11 04:05:40 INFO session closed session_id=3396 user_id=load-3395 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=3397 remote=127.0.0.1:35096 reason="peer closed"
+2026/11/11 04:05:40 INFO session closed session_id=233 user_id=load-232 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=234 remote=127.0.0.1:49406 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49406: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=483 user_id=load-482 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=484 remote=127.0.0.1:51722 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:51722: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=274 user_id=load-281 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=283 remote=127.0.0.1:49868 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49868: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=257 user_id=load-257 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=257 remote=127.0.0.1:49576 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49576: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=254 user_id=load-255 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=254 remote=127.0.0.1:49578 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49578: read: connection reset by peer"
+2026/11/11 04:05:40 INFO connection closed conn_id=3418 remote=127.0.0.1:35290 reason="peer closed"
+2026/11/11 04:05:40 INFO connection closed conn_id=3406 remote=127.0.0.1:35174 reason="peer closed"
+2026/11/11 04:05:40 INFO session closed session_id=277 user_id=load-285 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=287 remote=127.0.0.1:49924 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49924: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=255 user_id=load-260 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=258 remote=127.0.0.1:49646 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49646: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=273 user_id=load-280 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=282 remote=127.0.0.1:49858 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49858: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=482 user_id=load-481 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=483 remote=127.0.0.1:51720 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:51720: read: connection reset by peer"
+2026/11/11 04:05:40 INFO session closed session_id=234 user_id=load-233 device_id=d0
+2026/11/11 04:05:40 INFO connection closed conn_id=235 remote=127.0.0.1:49414 reason="read error: read tcp 127.0.0.1:19330->127.0.0.1:49414: read: connection reset by peer"
+```
+
+## build log
+```
+```
+
+## environment
+```
+go: go version go1.27.3 linux/amd64
+uname: Linux 927737dbc69c 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+nproc: 8
+meminfo:
+  MemTotal:        8052384 kB
+  MemFree:         4707948 kB
+  MemAvailable:    7084952 kB
+  Buffers:          110216 kB
+  Cached:          2526096 kB
+ulimit_nofile: 1048576 (requested 1048576)
+ip_local_port_range: 32768	60999
+gateway_alive_at_end: yes
+```

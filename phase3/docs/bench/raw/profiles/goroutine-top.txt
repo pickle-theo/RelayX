@@ -1,0 +1,24 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: goroutine
+Time: 2026-11-11 12:25:19 CST
+Showing nodes accounting for 20004, 100% of 20009 total
+Dropped 38 nodes (cum <= 100)
+      flat  flat%   sum%        cum   cum%
+     20004   100%   100%      20004   100%  runtime.gopark
+         0     0%   100%      10000 49.98%  bufio.(*Reader).Read
+         0     0%   100%      10000 49.98%  internal/poll.(*FD).Read
+         0     0%   100%      10002 49.99%  internal/poll.(*pollDesc).wait
+         0     0%   100%      10002 49.99%  internal/poll.(*pollDesc).waitRead (inline)
+         0     0%   100%      10002 49.99%  internal/poll.runtime_pollWait
+         0     0%   100%      10000 49.98%  io.ReadAtLeast
+         0     0%   100%      10000 49.98%  io.ReadFull (inline)
+         0     0%   100%      10000 49.98%  net.(*conn).Read
+         0     0%   100%      10000 49.98%  net.(*netFD).Read
+         0     0%   100%      10000 49.98%  relayx/phase3/internal/protocol.DecodeInto
+         0     0%   100%      10000 49.98%  relayx/phase3/internal/transport.(*Conn).readLoop
+         0     0%   100%      10000 49.98%  relayx/phase3/internal/transport.(*Conn).run
+         0     0%   100%      10000 49.98%  relayx/phase3/internal/transport.(*Conn).writeLoop
+         0     0%   100%      10000 49.98%  relayx/phase3/internal/transport.(*Server).handleConn.func2
+         0     0%   100%      10002 49.99%  runtime.netpollblock
+         0     0%   100%      10002 49.99%  runtime.selectgo

@@ -1,0 +1,3 @@
+Fetching profile over HTTP from http://127.0.0.1:16060/debug/pprof/profile?seconds=15
+Saved profile in /root/pprof/pprof.gateway.samples.cpu.001.pb.gz
+Generating report in /app/docs/bench/raw/profiles/cpu.proto

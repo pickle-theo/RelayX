@@ -1,0 +1,17 @@
+logged in as alice/d1 session=1
+connected to 127.0.0.1:5003 as demo
+pull_done count=0 cursor=0 has_more=false
+echo msg_id=1 body=demo#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=bob-1111143114-a/d1 message_id=5 body=demo#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=bob-1111143114-a/d1 message_id=6 body=demo#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+logged in as alice/d1 session=2
+connected to 127.0.0.1:5001 as demo
+pull_done count=0 cursor=0 has_more=false
+echo msg_id=1 body=demo#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=2 body=demo#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+echo msg_id=3 body=demo#3 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=bob-1111143114-b/d1 message_id=7 body=demo#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+deliver from=bob-1111143114-b/d1 message_id=8 body=demo#2 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl
+logged in as alice/d1 session=1
+connected to 127.0.0.1:5002 as demo
+pull_done count=0 cursor=0 has_more=false

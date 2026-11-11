@@ -1,0 +1,1 @@
+client: connect to 127.0.0.1:5001: login rejected: status=3 message="cluster unavailable"

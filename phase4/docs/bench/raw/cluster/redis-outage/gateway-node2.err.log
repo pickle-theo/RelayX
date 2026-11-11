@@ -1,0 +1,51 @@
+2026/11/11 14:31:40 INFO store: migrations complete applied=0 skipped=1
+2026/11/11 14:31:40 INFO database ready max_open_conns=64 max_idle_conns=8
+2026/11/11 14:31:40 INFO cluster enabled node_id=node2 node_addr=127.0.0.1:9102 advertise_addr=127.0.0.1:9102 redis_addr=127.0.0.1:6379
+2026/11/11 14:31:40 INFO delivery worker started interval=1s max_attempts=5
+2026/11/11 14:31:40 INFO gateway listening addr=127.0.0.1:5002
+2026/11/11 14:31:40 INFO connection accepted conn_id=1 remote=127.0.0.1:59200
+2026/11/11 14:31:40 INFO connection closed conn_id=1 remote=127.0.0.1:59200 reason="peer closed"
+2026/11/11 14:31:41 WARN node handshake read failed remote=127.0.0.1:59205 error=EOF
+2026/11/11 14:31:41 INFO node connected node_id=node1 addr=127.0.0.1:59209 inbound=true
+2026/11/11 14:31:42 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=11 heap_alloc_mb=1.08 heap_sys_mb=7.66 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:44 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=12 heap_alloc_mb=1.27 heap_sys_mb=7.63 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+redis: 2026/11/11 14:31:44 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:45 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:45 WARN registry: node sweep failed node=node2 error="registry: sweep list nodes: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."
+redis: 2026/11/11 14:31:45 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:45 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:46 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:46 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=11 heap_alloc_mb=1.33 heap_sys_mb=7.63 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+redis: 2026/11/11 14:31:46 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:46 WARN registry: node sweep failed node=node2 error="registry: sweep list nodes: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."
+2026/11/11 14:31:46 WARN registry: node heartbeat failed node=node2 error="registry: register node node2: read tcp 127.0.0.1:59197->127.0.0.1:6379: wsarecv: An established connection was aborted by the software in your host machine."
+redis: 2026/11/11 14:31:47 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:47 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:48 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:48 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=12 heap_alloc_mb=1.39 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+redis: 2026/11/11 14:31:48 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:48 WARN registry: node sweep failed node=node2 error="registry: sweep list nodes: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."
+redis: 2026/11/11 14:31:49 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:49 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:49 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:50 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:50 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=12 heap_alloc_mb=1.46 heap_sys_mb=7.59 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=2 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+redis: 2026/11/11 14:31:50 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:51 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:51 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:52 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:52 WARN registry: node heartbeat failed node=node2 error="registry: register node node2: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."
+redis: 2026/11/11 14:31:52 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:52 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=11 heap_alloc_mb=1.51 heap_sys_mb=7.56 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=2 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+redis: 2026/11/11 14:31:52 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:53 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:53 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:53 WARN registry: node sweep failed node=node2 error="registry: sweep list nodes: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."
+redis: 2026/11/11 14:31:54 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:54 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=12 heap_alloc_mb=1.57 heap_sys_mb=7.56 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=3 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+redis: 2026/11/11 14:31:54 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:55 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+redis: 2026/11/11 14:31:55 pool.go:770: redis: connection pool: failed to dial after 5 attempts: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it.
+2026/11/11 14:31:55 WARN registry: node sweep failed node=node2 error="registry: sweep list nodes: dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."
+2026/11/11 14:31:56 INFO gateway stats node_id=node2 cluster_peers=1 goroutines=10 heap_alloc_mb=1.94 heap_sys_mb=7.56 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:56 INFO node disconnected node_id=node1 addr=127.0.0.1:59209 reason="read error: read tcp 127.0.0.1:9102->127.0.0.1:59209: wsarecv: An existing connection was forcibly closed by the remote host."

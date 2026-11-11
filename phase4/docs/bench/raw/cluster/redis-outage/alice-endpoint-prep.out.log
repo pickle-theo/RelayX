@@ -1,0 +1,4 @@
+logged in as alice/d1 session=1
+connected to 127.0.0.1:5001 as demo
+pull_done count=0 cursor=0 has_more=false
+echo msg_id=1 body=demo#1 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl

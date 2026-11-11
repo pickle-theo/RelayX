@@ -1,0 +1,3 @@
+Fetching profile over HTTP from http://127.0.0.1:16060/debug/pprof/goroutine
+Saved profile in /root/pprof/pprof.gateway.goroutine.001.pb.gz
+Generating report in /app/docs/bench/raw/profiles/goroutine.proto

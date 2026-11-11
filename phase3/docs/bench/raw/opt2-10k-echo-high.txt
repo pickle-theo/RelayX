@@ -1,0 +1,180 @@
+# RelayX Phase 3 bench report
+
+generated_at: 2026-11-11T05:06:23Z
+scenario: steady-high
+effective_mode: echo
+exit_code: 0
+
+== bench host ==
+started_at: 2026-11-11T05:06:23Z
+docker_client_version: 29.9.2
+docker_server_version: 29.9.2
+host_os: Microsoft Windows 11 Pro 10.0.26300
+host_cpu: Intel(R) Core(TM) i3-10105 CPU @ 3.70GHz
+host_cpu_cores: 4 (logical 8)
+host_memory_gb: 15.8
+repo_root: C:\Users\Administrator\Documents\trae_projects\RelayX\phase3
+runner: bench/run.ps1 -> golang:1.27 -> bash bench/run.sh
+out: docs/bench/raw/opt2-10k-echo-high.txt
+
+## parameters
+```
+CONNS=10000
+DURATION=45s
+INTERVAL=1s
+RAMP=15s
+TIMEOUT=5s
+SCENARIO=steady-high
+PAYLOAD=64
+MODE=echo
+ACK=both
+SLOW_RATIO=0.1
+RECONNECT_AFTER=10s
+RECONNECT_WINDOW=5s
+PROFILE=1
+ADDR=127.0.0.1:19330
+PPROF_ADDR=127.0.0.1:16060
+DSN=postgres://relayx:relayx@host.docker.internal:5432/relayx?sslmode=disable
+STATS_INTERVAL=5s
+OUT=/app/docs/bench/raw/opt2-10k-echo-high.txt
+ulimit_nofile=1048576 (requested 1048576)
+```
+
+## loadtest output (raw)
+```
+RelayX Phase 3 load test
+finished_at : 2026-11-11T05:07:10Z
+elapsed     : 45.208s
+addr        : 127.0.0.1:19330
+mode        : echo
+target      : -
+conns       : 10000 (ramp 15s)
+duration    : 45s
+interval    : 1s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 5s
+
+[scenario]
+name                : steady-high
+payload_size        : 64 bytes
+slow_consumers      : 0
+pings_received      : 9999
+reconnect_attempts  : 0
+reconnect_succeeded : 0
+reconnect_failed    : 0
+reconnect_retries   : 0
+reconnect_in_window : n/a
+
+[connections]
+succeeded    : 10000
+failed       : 0
+success_rate : 100.00%
+
+[messages]
+sent   : 370630
+echoed : 370630
+missed : 0
+
+[errors]
+connect_failures  : 0
+login_failures    : 0
+route_errors      : 0
+timeouts          : 0
+decode_errors     : 0
+unexpected_frames : 0
+write_errors      : 0
+
+[rtt ms]
+samples : 370630
+p50     : 0.242
+p90     : 0.475
+p99     : 1.377
+max     : 118.335
+avg     : 0.421
+
+[client process]
+goroutines_pre_shutdown : 30001
+goroutines              : 1
+heap_alloc_mb           : 18.03
+heap_sys_mb             : 364.72
+rss_mb                  : 380.65
+rss_per_conn_kb         : 38.98
+```
+
+## gateway stats (tail)
+```
+2026/11/11 05:06:30 INFO gateway stats goroutines=6407 heap_alloc_mb=34.65 heap_sys_mb=43.38 gc_cycles=5 gc_pause_ms=0.1 active_conns=3200 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:06:35 INFO gateway stats goroutines=13030 heap_alloc_mb=70.51 heap_sys_mb=81.38 gc_cycles=6 gc_pause_ms=0.12 active_conns=6511 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:06:40 INFO gateway stats goroutines=19703 heap_alloc_mb=112.01 heap_sys_mb=123.31 gc_cycles=6 gc_pause_ms=0.12 active_conns=9846 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:06:45 INFO gateway stats goroutines=20011 heap_alloc_mb=117.38 heap_sys_mb=128.94 gc_cycles=6 gc_pause_ms=0.12 active_conns=10000 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:06:50 INFO gateway stats goroutines=20011 heap_alloc_mb=120.84 heap_sys_mb=132.94 gc_cycles=6 gc_pause_ms=0.12 active_conns=10000 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:06:55 INFO gateway stats goroutines=20009 heap_alloc_mb=108.64 heap_sys_mb=152.94 gc_cycles=7 gc_pause_ms=0.24 active_conns=10000 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:07:00 INFO gateway stats goroutines=20008 heap_alloc_mb=112.47 heap_sys_mb=152.91 gc_cycles=7 gc_pause_ms=0.24 active_conns=10000 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:07:05 INFO gateway stats goroutines=20008 heap_alloc_mb=116.15 heap_sys_mb=152.91 gc_cycles=7 gc_pause_ms=0.24 active_conns=10000 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 05:07:10 INFO gateway stats goroutines=20008 heap_alloc_mb=119.83 heap_sys_mb=152.91 gc_cycles=7 gc_pause_ms=0.24 active_conns=10000 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+```
+
+## gateway log (tail)
+```
+2026/11/11 05:07:10 INFO connection closed conn_id=595 remote=127.0.0.1:38230 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=313 remote=127.0.0.1:35612 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=262 remote=127.0.0.1:35096 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=348 remote=127.0.0.1:35884 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=342 remote=127.0.0.1:35836 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=343 remote=127.0.0.1:35846 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=319 remote=127.0.0.1:35656 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=320 remote=127.0.0.1:35660 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=387 remote=127.0.0.1:36270 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=344 remote=127.0.0.1:35850 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=321 remote=127.0.0.1:35662 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=314 remote=127.0.0.1:35620 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=315 remote=127.0.0.1:35636 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=447 remote=127.0.0.1:36886 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=327 remote=127.0.0.1:35708 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=316 remote=127.0.0.1:35640 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=322 remote=127.0.0.1:35664 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=345 remote=127.0.0.1:35856 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=352 remote=127.0.0.1:35936 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=317 remote=127.0.0.1:35646 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=323 remote=127.0.0.1:35672 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=353 remote=127.0.0.1:35940 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=199 remote=127.0.0.1:34510 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=346 remote=127.0.0.1:35872 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=318 remote=127.0.0.1:35648 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=354 remote=127.0.0.1:35942 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=324 remote=127.0.0.1:35674 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=347 remote=127.0.0.1:35882 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=329 remote=127.0.0.1:35728 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=325 remote=127.0.0.1:35680 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=335 remote=127.0.0.1:35770 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=330 remote=127.0.0.1:35732 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=332 remote=127.0.0.1:35746 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=331 remote=127.0.0.1:35734 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=334 remote=127.0.0.1:35766 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=336 remote=127.0.0.1:35782 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=337 remote=127.0.0.1:35798 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=333 remote=127.0.0.1:35754 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=588 remote=127.0.0.1:38178 reason="peer closed"
+2026/11/11 05:07:10 INFO connection closed conn_id=762 remote=127.0.0.1:39718 reason="peer closed"
+```
+
+## build log
+```
+```
+
+## environment
+```
+go: go version go1.27.3 linux/amd64
+uname: Linux eb30128c7616 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+nproc: 8
+meminfo:
+  MemTotal:        8052384 kB
+  MemFree:         4823540 kB
+  MemAvailable:    7141412 kB
+  Buffers:          123964 kB
+  Cached:          2445276 kB
+ulimit_nofile: 1048576 (requested 1048576)
+ip_local_port_range: 32768	60999
+gateway_alive_at_end: yes
+```

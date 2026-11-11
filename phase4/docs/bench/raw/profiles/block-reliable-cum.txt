@@ -1,0 +1,32 @@
+File: gateway
+Build ID: c8126d5e0c458b94f02a08f418d41b123d6ec499
+Type: delay
+Time: 2026-11-11 12:31:30 CST
+Showing nodes accounting for 12.27hrs, 100% of 12.27hrs total
+Dropped 83 nodes (cum <= 0.06hrs)
+      flat  flat%   sum%        cum   cum%
+  12.27hrs   100%   100%   12.27hrs   100%  runtime.selectgo
+         0     0%   100%    6.43hrs 52.40%  relayx/phase3/internal/transport.(*Conn).run.gowrap1
+         0     0%   100%    6.43hrs 52.40%  relayx/phase3/internal/transport.(*Conn).writeLoop
+         0     0%   100%    5.83hrs 47.49%  database/sql.(*DB).retry
+         0     0%   100%    5.83hrs 47.49%  database/sql.(*DB).conn
+         0     0%   100%    5.82hrs 47.45%  relayx/phase3/internal/transport.(*Conn).run
+         0     0%   100%    5.82hrs 47.45%  relayx/phase3/internal/transport.(*Server).handleConn.func2
+         0     0%   100%    5.82hrs 47.45%  relayx/phase3/internal/transport.(*Conn).readLoop
+         0     0%   100%    5.82hrs 47.45%  relayx/phase3/internal/gateway.(*Handler).Handle
+         0     0%   100%    5.82hrs 47.45%  relayx/phase3/internal/gateway.(*Handler).Handle-fm
+         0     0%   100%    3.38hrs 27.53%  database/sql.(*DB).QueryContext
+         0     0%   100%    3.38hrs 27.53%  database/sql.(*DB).QueryContext.func1
+         0     0%   100%    3.38hrs 27.53%  database/sql.(*DB).query
+         0     0%   100%    3.38hrs 27.51%  relayx/phase3/internal/gateway.(*Handler).handleSend
+         0     0%   100%    2.45hrs 19.96%  database/sql.(*DB).ExecContext
+         0     0%   100%    2.45hrs 19.96%  database/sql.(*DB).ExecContext.func1
+         0     0%   100%    2.45hrs 19.96%  database/sql.(*DB).exec
+         0     0%   100%    1.71hrs 13.93%  relayx/phase3/internal/gateway.(*Handler).resolveRecipients
+         0     0%   100%    1.71hrs 13.93%  relayx/phase3/internal/store.(*Store).ListEndpoints
+         0     0%   100%    1.67hrs 13.58%  database/sql.(*DB).QueryRowContext (inline)
+         0     0%   100%    1.67hrs 13.58%  relayx/phase3/internal/store.(*Store).AcceptMessage
+         0     0%   100%    1.22hrs  9.93%  relayx/phase3/internal/gateway.(*Handler).handleReceiptAck
+         0     0%   100%    1.22hrs  9.93%  relayx/phase3/internal/store.(*Store).ApplyReceiptAck
+         0     0%   100%    1.22hrs  9.91%  relayx/phase3/internal/gateway.(*Handler).handleBusinessAck
+         0     0%   100%    1.22hrs  9.91%  relayx/phase3/internal/store.(*Store).ApplyBusinessAck

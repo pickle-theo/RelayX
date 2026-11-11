@@ -1,0 +1,3 @@
+time=2026-11-11T14:31:23.224+08:00 level=WARN msg="connection lost, switching gateway node" from=127.0.0.1:5003 to=127.0.0.1:5001 reason="read: read tcp 127.0.0.1:59170->127.0.0.1:5003: wsarecv: An existing connection was forcibly closed by the remote host."
+time=2026-11-11T14:31:27.246+08:00 level=WARN msg="connection lost, switching gateway node" from=127.0.0.1:5001 to=127.0.0.1:5002 reason="read: read tcp 127.0.0.1:59177->127.0.0.1:5001: wsarecv: An existing connection was forcibly closed by the remote host."
+client: all gateway addresses failed (last error: connect to 127.0.0.1:5001: dial tcp 127.0.0.1:5001: connectex: No connection could be made because the target machine actively refused it.)

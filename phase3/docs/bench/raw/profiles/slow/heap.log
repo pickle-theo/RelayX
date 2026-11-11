@@ -1,0 +1,3 @@
+Fetching profile over HTTP from http://127.0.0.1:16060/debug/pprof/heap
+Saved profile in /root/pprof/pprof.gateway.alloc_objects.alloc_space.inuse_objects.inuse_space.001.pb.gz
+Generating report in /app/docs/bench/raw/profiles/heap.proto

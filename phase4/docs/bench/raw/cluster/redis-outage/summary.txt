@@ -1,0 +1,39 @@
+scenario: redis-outage
+started_at: 2026-11-11T14:31:34+08:00
+finished_at: 2026-11-11T14:31:57+08:00
+duration_s: 23.23
+host: WIN-1DPKB4M7I5M  os: Microsoft Windows NT 10.0.26300.0
+go: go version go1.27.3 windows/amd64
+postgres_container: relayx-phase2-pg
+redis_container: relayx-phase4-redis
+param: sender_user: bob-1111143134 (run-scoped, avoids the (from_user, client_msg_id) idempotency key)
+param: nodes: node1 127.0.0.1:5001/9101, node2 127.0.0.1:5002/9102, node3 127.0.0.1:5003/9103
+param: gateway_args: -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s
+param: fault: docker stop -t 1 relayx-phase4-redis
+process: gateway-node1 args: -addr 127.0.0.1:5001 -node-id node1 -node-addr 127.0.0.1:9101 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: gateway-node2 args: -addr 127.0.0.1:5002 -node-id node2 -node-addr 127.0.0.1:9102 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: gateway-node3 args: -addr 127.0.0.1:5003 -node-id node3 -node-addr 127.0.0.1:9103 -redis-addr 127.0.0.1:6379 -node-heartbeat-interval 500ms -node-ttl 1500ms -node-cleanup-interval 500ms -stats-interval 2s -dsn postgres://relayx:relayx@127.0.0.1:5432/relayx?sslmode=disable
+process: alice-endpoint-prep args: -addr 127.0.0.1:5001 -user alice -device d1 -count 1 -interval 1s
+process: bob-node1-outage args: -addr 127.0.0.1:5001 -user bob-1111143134 -device d1 -to alice -count 2 -interval 4s
+process: carol-login-outage args: -addr 127.0.0.1:5001 -user carol -device d1 -count 1
+process: alice-node1-pull args: -addr 127.0.0.1:5001 -user alice -device d1
+
+PASS: docker is available
+PASS: PostgreSQL container relayx-phase2-pg is running
+PASS: Redis container is running and answers PONG
+PASS: bin/gateway.exe and bin/client.exe built
+PASS: cluster ports 5001-5003 and 9101-9103 are free
+PASS: 3 gateway nodes healthy (6 ports) in 1.35s
+PASS: alice endpoint prepared in PostgreSQL (login-only client)
+PASS: bob (bob-1111143134)/d1 logged in on node1 before the outage
+PASS: Redis stopped (docker stop -t 1) in 0.91s
+PASS: bob sender exited with code 0 during the Redis outage
+PASS: SEND stayed durable with Redis down: 2 accepted SEND_ACKs
+PASS: login while Redis is down exited non-zero (code 1)
+PASS: LOGIN_ACK internal: carol log reports login rejected / cluster unavailable
+PASS: Redis restarted and answering PONG in 0.7s
+PASS: alice/d1 logged in on node1 after Redis recovered
+PASS: offline messages replayed after Redis recovery (deliveries=2, max pull_done count=2)
+
+exit_code: 0
+evidence_files: alice-endpoint-prep.cmd, alice-endpoint-prep.err.log, alice-endpoint-prep.out.log, alice-node1-pull.cmd, alice-node1-pull.err.log, alice-node1-pull.out.log, bob-node1-outage.cmd, bob-node1-outage.err.log, bob-node1-outage.out.log, carol-login-outage.cmd, carol-login-outage.err.log, carol-login-outage.out.log, gateway-node1.err.log, gateway-node1.out.log, gateway-node2.err.log, gateway-node2.out.log, gateway-node3.err.log, gateway-node3.out.log

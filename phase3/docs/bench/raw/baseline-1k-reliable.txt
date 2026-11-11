@@ -1,0 +1,196 @@
+# RelayX Phase 3 bench report
+
+generated_at: 2026-11-11T04:28:50Z
+scenario: steady-low
+effective_mode: reliable
+exit_code: 1
+
+== bench host ==
+started_at: 2026-11-11T04:28:50Z
+docker_client_version: 29.9.2
+docker_server_version: 29.9.2
+host_os: Microsoft Windows 11 专业版 10.0.26300
+host_cpu: Intel(R) Core(TM) i3-10105 CPU @ 3.70GHz
+host_cpu_cores: 4 (logical 8)
+host_memory_gb: 15.8
+repo_root: C:\Users\Administrator\Documents\trae_projects\RelayX\phase3
+runner: bench/run.ps1 -> golang:1.27 -> bash bench/run.sh
+out: docs/bench/raw/baseline-1k-reliable.txt
+
+## parameters
+```
+CONNS=1000
+DURATION=45s
+INTERVAL=1s
+RAMP=5s
+TIMEOUT=10s
+SCENARIO=steady-low
+PAYLOAD=64
+MODE=reliable
+ACK=both
+SLOW_RATIO=0.1
+RECONNECT_AFTER=10s
+RECONNECT_WINDOW=5s
+PROFILE=0
+ADDR=127.0.0.1:19330
+PPROF_ADDR=127.0.0.1:16060
+DSN=postgres://relayx:relayx@host.docker.internal:5432/relayx?sslmode=disable
+STATS_INTERVAL=5s
+OUT=/app/docs/bench/raw/baseline-1k-reliable.txt
+ulimit_nofile=1048576 (requested 1048576)
+```
+
+## loadtest output (raw)
+```
+RelayX Phase 3 load test
+finished_at : 2026-11-11T04:29:47Z
+elapsed     : 55.011s
+addr        : 127.0.0.1:19330
+mode        : reliable
+target      : self
+conns       : 1000 (ramp 5s)
+duration    : 45s
+interval    : 1s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 10s
+
+[scenario]
+name                : steady-low
+payload_size        : 64 bytes
+slow_consumers      : 0
+pings_received      : 1000
+reconnect_attempts  : 0
+reconnect_succeeded : 0
+reconnect_failed    : 0
+reconnect_retries   : 0
+reconnect_in_window : n/a
+
+[connections]
+succeeded    : 1000
+failed       : 0
+success_rate : 100.00%
+
+[messages]
+sent   : 41937
+send_ack      : 28058
+duplicate_ack : 0
+delivered     : 28125
+receipt_acked : 28125
+business_acked: 28125
+ack_missed    : 13812
+
+[errors]
+connect_failures  : 0
+login_failures    : 0
+route_errors      : 0
+timeouts          : 20834
+decode_errors     : 0
+unexpected_frames : 13977
+write_errors      : 0
+
+[accept_rtt ms]
+samples : 21103
+p50     : 4323.400
+p90     : 9020.764
+p99     : 10723.803
+max     : 12841.370
+avg     : 4528.954
+
+[deliver_rtt ms]
+samples : 21103
+p50     : 4323.400
+p90     : 9020.764
+p99     : 10723.804
+max     : 12841.372
+avg     : 4529.015
+
+[client process]
+goroutines_pre_shutdown : 3001
+goroutines              : 1
+heap_alloc_mb           : 2.09
+heap_sys_mb             : 46.91
+rss_mb                  : 47.13
+rss_per_conn_kb         : 48.26
+```
+
+## gateway stats (tail)
+```
+2026/11/11 04:28:57 INFO gateway stats goroutines=1939 heap_alloc_mb=22.78 heap_sys_mb=32.06 gc_cycles=6 gc_pause_ms=1.1 active_conns=964 active_sessions=923 messages_accepted=1525 messages_duplicate=0 deliveries_pending=99 deliveries_retried=0 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:02 INFO gateway stats goroutines=2008 heap_alloc_mb=28.31 heap_sys_mb=42.81 gc_cycles=8 gc_pause_ms=2.44 active_conns=1000 active_sessions=1000 messages_accepted=4913 messages_duplicate=0 deliveries_pending=1021 deliveries_retried=0 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:07 INFO gateway stats goroutines=2008 heap_alloc_mb=18.62 heap_sys_mb=42.63 gc_cycles=10 gc_pause_ms=0.43 active_conns=1000 active_sessions=1000 messages_accepted=8368 messages_duplicate=0 deliveries_pending=1970 deliveries_retried=10 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:12 INFO gateway stats goroutines=2007 heap_alloc_mb=24.85 heap_sys_mb=42.53 gc_cycles=11 gc_pause_ms=2.18 active_conns=1000 active_sessions=1000 messages_accepted=11536 messages_duplicate=0 deliveries_pending=3050 deliveries_retried=17 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:17 INFO gateway stats goroutines=2008 heap_alloc_mb=32.92 heap_sys_mb=42.41 gc_cycles=12 gc_pause_ms=0.47 active_conns=1000 active_sessions=1000 messages_accepted=15016 messages_duplicate=0 deliveries_pending=4390 deliveries_retried=31 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:22 INFO gateway stats goroutines=2007 heap_alloc_mb=19.48 heap_sys_mb=42.41 gc_cycles=14 gc_pause_ms=2.7 active_conns=1000 active_sessions=1000 messages_accepted=18165 messages_duplicate=0 deliveries_pending=5427 deliveries_retried=36 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:27 INFO gateway stats goroutines=2007 heap_alloc_mb=23.95 heap_sys_mb=42.41 gc_cycles=15 gc_pause_ms=0.47 active_conns=1000 active_sessions=1000 messages_accepted=21121 messages_duplicate=0 deliveries_pending=6379 deliveries_retried=48 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:33 WARN gateway stats: count pending deliveries failed error="store: count pending deliveries: context deadline exceeded"
+2026/11/11 04:29:33 INFO gateway stats goroutines=2006 heap_alloc_mb=25.32 heap_sys_mb=42.41 gc_cycles=16 gc_pause_ms=12.68 active_conns=1000 active_sessions=1000 messages_accepted=23694 messages_duplicate=0 deliveries_pending=-1 deliveries_retried=53 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:38 WARN gateway stats: count pending deliveries failed error="store: count pending deliveries: context deadline exceeded"
+2026/11/11 04:29:38 INFO gateway stats goroutines=2006 heap_alloc_mb=28.65 heap_sys_mb=42.41 gc_cycles=17 gc_pause_ms=0.33 active_conns=1000 active_sessions=1000 messages_accepted=26572 messages_duplicate=0 deliveries_pending=-1 deliveries_retried=63 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:42 INFO gateway stats goroutines=328 heap_alloc_mb=10.72 heap_sys_mb=45.16 gc_cycles=19 gc_pause_ms=2.09 active_conns=102 active_sessions=102 messages_accepted=30268 messages_duplicate=0 deliveries_pending=9868 deliveries_retried=74 deliveries_expired=0 db_open_conns=16
+2026/11/11 04:29:47 INFO gateway stats goroutines=7 heap_alloc_mb=13.59 heap_sys_mb=50.38 gc_cycles=19 gc_pause_ms=2.09 active_conns=0 active_sessions=0 messages_accepted=30555 messages_duplicate=0 deliveries_pending=10031 deliveries_retried=74 deliveries_expired=0 db_open_conns=8
+```
+
+## gateway log (tail)
+```
+2026/11/11 04:29:42 INFO connection closed conn_id=215 remote=127.0.0.1:53618 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:53618: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=86 user_id=load-85 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=87 remote=127.0.0.1:52478 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:52478: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=708 user_id=load-714 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=716 remote=127.0.0.1:37244 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:37244: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=924 user_id=load-958 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=960 remote=127.0.0.1:39474 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:39474: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=114 user_id=load-113 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=115 remote=127.0.0.1:52766 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:52766: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=386 user_id=load-385 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=387 remote=127.0.0.1:55198 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:55198: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=312 user_id=load-311 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=313 remote=127.0.0.1:54564 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:54564: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=495 user_id=load-494 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=496 remote=127.0.0.1:56232 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:56232: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=2 user_id=load-1 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=3 remote=127.0.0.1:51672 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:51672: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=59 user_id=load-58 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=60 remote=127.0.0.1:52186 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:52186: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=216 user_id=load-218 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=220 remote=127.0.0.1:53644 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:53644: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=732 user_id=load-679 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=681 remote=127.0.0.1:36942 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:36942: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=594 user_id=load-597 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=599 remote=127.0.0.1:57140 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:57140: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=143 user_id=load-142 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=144 remote=127.0.0.1:52994 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:52994: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=164 user_id=load-163 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=165 remote=127.0.0.1:53162 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:53162: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=251 user_id=load-250 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=252 remote=127.0.0.1:53964 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:53964: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=719 user_id=load-687 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=689 remote=127.0.0.1:37024 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:37024: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=646 user_id=load-651 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=653 remote=127.0.0.1:36720 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:36720: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=116 user_id=load-115 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=117 remote=127.0.0.1:52776 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:52776: write: broken pipe"
+2026/11/11 04:29:42 INFO session closed session_id=499 user_id=load-498 device_id=d0
+2026/11/11 04:29:42 INFO connection closed conn_id=500 remote=127.0.0.1:56262 reason="write error: write tcp 127.0.0.1:19330->127.0.0.1:56262: write: broken pipe"
+2026/11/11 04:29:47 INFO gateway stats goroutines=7 heap_alloc_mb=13.59 heap_sys_mb=50.38 gc_cycles=19 gc_pause_ms=2.09 active_conns=0 active_sessions=0 messages_accepted=30555 messages_duplicate=0 deliveries_pending=10031 deliveries_retried=74 deliveries_expired=0 db_open_conns=8
+```
+
+## build log
+```
+```
+
+## environment
+```
+go: go version go1.27.3 linux/amd64
+uname: Linux 65d0fa456e82 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+nproc: 8
+meminfo:
+  MemTotal:        8052384 kB
+  MemFree:         4774580 kB
+  MemAvailable:    7069564 kB
+  Buffers:          114712 kB
+  Cached:          2440552 kB
+ulimit_nofile: 1048576 (requested 1048576)
+ip_local_port_range: 32768	60999
+gateway_alive_at_end: yes
+```

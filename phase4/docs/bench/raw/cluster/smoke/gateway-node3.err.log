@@ -1,0 +1,18 @@
+2026/11/11 14:31:02 INFO store: migrations complete applied=0 skipped=1
+2026/11/11 14:31:02 INFO database ready max_open_conns=64 max_idle_conns=8
+2026/11/11 14:31:02 INFO cluster enabled node_id=node3 node_addr=127.0.0.1:9103 advertise_addr=127.0.0.1:9103 redis_addr=127.0.0.1:6379
+2026/11/11 14:31:02 INFO delivery worker started interval=1s max_attempts=5
+2026/11/11 14:31:02 INFO gateway listening addr=127.0.0.1:5003
+2026/11/11 14:31:03 WARN node handshake read failed remote=127.0.0.1:59137 error=EOF
+2026/11/11 14:31:03 INFO connection accepted conn_id=1 remote=127.0.0.1:59138
+2026/11/11 14:31:03 INFO connection closed conn_id=1 remote=127.0.0.1:59138 reason="peer closed"
+2026/11/11 14:31:04 INFO connection accepted conn_id=2 remote=127.0.0.1:59139
+2026/11/11 14:31:04 INFO gateway stats node_id=node3 cluster_peers=0 goroutines=11 heap_alloc_mb=1.09 heap_sys_mb=3.66 gc_cycles=0 gc_pause_ms=0 active_conns=1 active_sessions=1 messages_accepted=0 messages_duplicate=0 deliveries_pending=0 deliveries_retried=0 deliveries_expired=0 db_open_conns=1
+2026/11/11 14:31:05 INFO node connected node_id=node1 addr=127.0.0.1:59142 inbound=true
+2026/11/11 14:31:06 INFO node connected node_id=node2 addr=127.0.0.1:59144 inbound=true
+2026/11/11 14:31:06 INFO gateway: closing replaced session session_id=1 user_id=alice device_id=d1 version=32 kicked_by=33
+2026/11/11 14:31:06 INFO session closed session_id=1 user_id=alice device_id=d1
+2026/11/11 14:31:06 INFO connection closed conn_id=2 remote=127.0.0.1:59139 reason="replaced by new login"
+2026/11/11 14:31:07 INFO gateway stats node_id=node3 cluster_peers=2 goroutines=12 heap_alloc_mb=1.16 heap_sys_mb=3.66 gc_cycles=0 gc_pause_ms=0 active_conns=0 active_sessions=0 messages_accepted=0 messages_duplicate=0 deliveries_pending=1 deliveries_retried=0 deliveries_expired=0 db_open_conns=2
+2026/11/11 14:31:07 INFO node disconnected node_id=node1 addr=127.0.0.1:59142 reason="read error: read tcp 127.0.0.1:9103->127.0.0.1:59142: wsarecv: An existing connection was forcibly closed by the remote host."
+2026/11/11 14:31:07 INFO node disconnected node_id=node2 addr=127.0.0.1:59144 reason="read error: read tcp 127.0.0.1:9103->127.0.0.1:59144: wsarecv: An existing connection was forcibly closed by the remote host."

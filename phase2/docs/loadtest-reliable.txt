@@ -1,0 +1,57 @@
+RelayX Phase 2 load test
+finished_at : 2026-11-11T02:27:19+08:00
+elapsed     : 1m0.23s
+addr        : 127.0.0.1:19320
+mode        : reliable
+target      : self
+conns       : 1000 (ramp 5s)
+duration    : 1m0s
+interval    : 1s
+payload_size: 64 bytes
+max_body    : 1048576 bytes
+timeout     : 5s
+
+[connections]
+succeeded    : 1000
+failed       : 0
+success_rate : 100.00%
+
+[messages]
+sent   : 56994
+send_ack      : 56994
+duplicate_ack : 0
+delivered     : 56994
+receipt_acked : 56994
+business_acked: 56994
+ack_missed    : 0
+
+[errors]
+connect_failures  : 0
+login_failures    : 0
+route_errors      : 0
+timeouts          : 0
+decode_errors     : 0
+unexpected_frames : 0
+write_errors      : 0
+
+[accept_rtt ms]
+samples : 56994
+p50     : 39.109
+p90     : 170.864
+p99     : 467.273
+max     : 1205.161
+avg     : 71.887
+
+[deliver_rtt ms]
+samples : 56994
+p50     : 39.257
+p90     : 170.988
+p99     : 467.328
+max     : 1205.161
+avg     : 72.013
+
+[client process]
+goroutines_pre_shutdown : 2001
+goroutines              : 1
+heap_alloc_mb           : 3.21
+heap_sys_mb             : 58.94
