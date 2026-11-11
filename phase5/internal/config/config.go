@@ -94,6 +94,19 @@ type ServerConfig struct {
 	NodeCleanupInterval time.Duration
 	// NodeDialTimeout bounds dialing a peer node.
 	NodeDialTimeout time.Duration
+	// TenantID is the tenant recorded on messages accepted through SEND. The
+	// TCP protocol has no tenant field, so one gateway process serves one
+	// tenant; the HTTP Message Service exposes the tenant per request instead.
+	TenantID string
+
+	// KafkaBrokers enables the in-process outbox relay when non-empty. In a
+	// real deployment the delivery worker owns the relay and the gateway only
+	// writes outbox rows.
+	KafkaBrokers string
+	// OutboxBatch bounds how many outbox rows one relay pass publishes.
+	OutboxBatch int
+	// OutboxInterval is the relay poll interval.
+	OutboxInterval time.Duration
 }
 
 // Validate checks that all numeric server settings are within range.
@@ -205,6 +218,15 @@ func (c ServerConfig) Validate() error {
 	if c.RedisDB < 0 {
 		return fmt.Errorf("redis-db must not be negative, got %d", c.RedisDB)
 	}
+	if strings.TrimSpace(c.TenantID) == "" {
+		return fmt.Errorf("tenant-id must not be empty")
+	}
+	if c.OutboxBatch < 0 {
+		return fmt.Errorf("outbox-batch must not be negative, got %d", c.OutboxBatch)
+	}
+	if c.OutboxInterval < 0 {
+		return fmt.Errorf("outbox-interval must not be negative, got %s", c.OutboxInterval)
+	}
 	// Cluster-only constraints. Single-node mode (empty redis-addr) leaves the
 	// node settings unvalidated so Phase 3 deployments keep working.
 	if c.RedisAddr != "" {
@@ -278,6 +300,10 @@ func ParseServer(args []string) (ServerConfig, error) {
 	fs.DurationVar(&cfg.NodeTTL, "node-ttl", 15*time.Second, "lifetime of a node registry entry")
 	fs.DurationVar(&cfg.NodeCleanupInterval, "node-cleanup-interval", 10*time.Second, "interval between stale node sweeps")
 	fs.DurationVar(&cfg.NodeDialTimeout, "node-dial-timeout", time.Second, "timeout for dialing a peer node")
+	fs.StringVar(&cfg.TenantID, "tenant-id", "default", "tenant recorded on messages accepted through SEND")
+	fs.StringVar(&cfg.KafkaBrokers, "kafka-brokers", "", "Kafka brokers for the in-process outbox relay (empty disables it)")
+	fs.IntVar(&cfg.OutboxBatch, "outbox-batch", 100, "maximum outbox rows published per relay pass")
+	fs.DurationVar(&cfg.OutboxInterval, "outbox-interval", 500*time.Millisecond, "outbox relay poll interval")
 
 	if err := fs.Parse(args); err != nil {
 		return ServerConfig{}, err
