@@ -1,0 +1,22 @@
+# Checklist
+
+- [x] `phase0.5/` 是独立 Go module（`relayx/phase0.5`），`phase0/` 未被修改
+- [x] 根 `go.work` 包含 `./phase0.5`，根 `Makefile` 的 `PHASES` 包含 `phase0.5`
+- [x] `phase0.5/` 中 `go build ./...`、`go vet ./...`、`go test ./...` 通过
+- [x] 存在协议与传输层 Benchmark（含 `-benchmem`），命令可重复执行
+- [x] `benchmark.md` 记录了优化前的基线数据（ns/op、B/op、allocs/op、Write 次数）
+- [x] 协议线格式（21 字节头、CRC32、帧类型）与 Phase 0 完全兼容，旧客户端可互通
+- [x] `AppendFrame` 复用调用方缓冲，不新建整帧切片；`DecodeInto` 可复用 Frame 与 Body
+- [x] buffer 池按容量分级，超大 buffer 不长期保留，所有权与归还规则有明确注释
+- [x] Send 路径 `allocs/op` 相比基线下降，大帧场景内存不持续增长
+- [x] 发送队列同时受帧数与字节预算约束，超限按背压关闭连接
+- [x] Writer 一次 drain 多条帧并按批量上限合并，单次 `Write` 可写出多帧且顺序、边界正确
+- [x] 控制帧（PONG/CLOSE）优先于积压的数据帧写出
+- [x] 写操作受 `write-timeout` 约束，对端不读时连接被关闭
+- [x] 读缓冲大小可通过 `read-buffer-size` 配置，粘包/半包行为不变
+- [x] 读 Deadline 不再每帧重置，空闲超时仍能触发
+- [x] 每连接稳定运行时为 2 个协程，心跳正常保活且超时能关闭连接
+- [x] 千连接压测完成，记录吞吐、P99、内存与协程数，并与 Phase 0 对比
+- [x] `gofmt` 无输出、`go vet` 通过、Docker `go test -race ./...` 通过
+- [x] 协程泄漏检查通过（测试后相对基线偏差不超过 5）
+- [x] `phase0.5/docs/` 包含 README、benchmark 报告与 ADR-003、ADR-004

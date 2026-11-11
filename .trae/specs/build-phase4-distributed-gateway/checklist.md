@@ -1,0 +1,29 @@
+# Checklist
+
+- [x] `phase4/` 是独立 Go module（`relayx/phase4`），根 `go.work` 与根 `Makefile` 的 `PHASES` 包含 `phase4`
+- [x] `phase0/`、`phase0.5/`、`phase1/`、`phase2/`、`phase3/` 未被修改
+- [x] 复制基线在 `phase4/` 内 `gofmt -l .` 无输出、`go vet ./...` 通过、`go test ./...` 通过
+- [x] 21 字节帧头、既有帧编号与 Body 布局与 Phase 3 完全一致，Phase 1/2 协议测试未删改语义
+- [x] 新增 5 个节点间帧类型的编解码有单元测试，覆盖长度越界、截断与非法状态
+- [x] 节点间帧不会在客户端连接上被接受（收到即协议错误关闭）
+- [x] 未配置 `-redis-addr` 时 Gateway 保持 Phase 3 单节点行为，既有集成测试全部通过
+- [x] 节点启动后在 `relayx:nodes` 可见，`relayx:node:<id>` 带 `addr` 且 TTL 为 `node_ttl`
+- [x] 心跳按 `node_heartbeat_interval` 刷新 TTL；停止心跳后节点在 `node_ttl` 内过期
+- [x] 优雅退出删除节点 key、`relayx:nodes` 成员与本地路由索引
+- [x] 登录写入 `relayx:route:<user>\x00<device>`，字段包含 `node`、`session`、`version`
+- [x] version 由 `INCR` 分配且在跨节点登录时单调递增
+- [x] 路由删除使用 Lua version CAS，旧会话清理不会删除新会话路由
+- [x] `relayx:node_routes:<node_id>` 随登录/关闭同步增删，用于定向回收
+- [x] 跨节点单播：消息由发送节点持久化，接收节点上客户端收到 DELIVER 并完成两级 ACK
+- [x] `NODE_DELIVER` 在本地无会话时返回 `NOT_FOUND`，发送节点不删除重试调度
+- [x] 跨节点重复登录：新节点登录成功，旧节点旧连接收到 `CLOSE`（reason 为 `replaced by new login`）
+- [x] 旧节点不可达时新登录仍在超时内成功，只记录告警（`TestClusterLoginSucceedsWhenOldNodeUnreachable`）
+- [x] 节点被 `kill -9` 后，存活节点在 `node_ttl + cleanup_interval` 内回收其路由，且不误删新 owner 路由
+- [x] 重试 worker 对远端存活节点的 due delivery 跳过且不写库；对无路由或死节点清理调度
+- [x] 节点间转发失败不增加 `attempts`，消息可由后续重试或 PULL 恢复（`TestClusterForwardFailureLeavesDeliveryRetryable`）
+- [x] `cmd/client` 与 `cmd/loadtest` 支持逗号分隔 `-addr`，节点崩溃后在 `-reconnect-after` 内切换并重新 LOGIN
+- [x] 3 节点集群可同时运行，客户端可连接任意节点并跨节点收发消息
+- [x] Redis 不可用：启动失败给出明确错误；运行期登录返回 `LOGIN_ACK` internal；已受理消息可通过 PULL 恢复
+- [x] 故障测试原始输出、耗时与最终状态记录在 `phase4/docs/cluster-test-report.md`
+- [x] `phase4/docs/` 包含 README、architecture、protocol-node、cluster-test-report 与 ADR-013/014/015
+- [x] 最终 `gofmt`、`go vet`、`go test ./...`、`go test -race ./...`、真实 PostgreSQL + Redis 集成测试全部通过并记录实际输出

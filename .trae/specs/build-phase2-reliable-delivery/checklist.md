@@ -1,0 +1,33 @@
+# Checklist
+
+- [x] `phase2/` 是独立 Go module（`relayx/phase2`），仅新增 `pgx/v5` 一个直接依赖，`phase0/`、`phase0.5/`、`phase1/` 未被修改
+- [x] 根 `go.work` 包含 `./phase2`，根 `Makefile` 的 `PHASES` 包含 `phase2`
+- [x] PostgreSQL 由本机 Docker 运行：`docker-compose.yml` 固定 `postgres:17-alpine`、容器名 `relayx-phase2-pg`、仅映射 `127.0.0.1:5432`、带命名卷与 healthcheck；`make db-up` 后可连接
+- [x] 除本机 Docker 外不依赖任何远程数据库或外部服务；`pgx` 仅作为编译进二进制的驱动库
+- [x] 启动时执行幂等迁移；数据库不可用时 5 秒内非零退出且日志含明确原因与 `make db-up` 提示
+- [x] `endpoints`/`messages`/`deliveries` 三张表与规定索引存在，唯一约束生效
+- [x] 消息受理在单事务内写入 1 条消息与全部投递记录，`ACCEPTED` 含义与事务边界一致
+- [x] 同一用户相同 `MsgID` 重复 `SEND` 只产生 1 条逻辑消息，重复请求返回原消息 ID
+- [x] 并发重复 `SEND` 仍只产生 1 条逻辑消息（依赖数据库唯一约束）
+- [x] 多设备场景为每个已知 endpoint 生成独立投递记录，状态互不影响
+- [x] Receipt ACK 使 `SENT → RECEIPT_ACKED` 并清除重试计划
+- [x] Business ACK 使状态进入 `BUSINESS_ACKED` 或 `BUSINESS_FAILED`，且可从 `SENT` 直接跃迁
+- [x] 重复 ACK 不改变终态、不报错、不重复计数
+- [x] 未登录连接发送 ACK 或 PULL 被拒绝，无任何状态修改
+- [x] 离线期间的消息在重新登录后可通过 `PULL` 恢复，`MsgID` 为平台消息 ID
+- [x] `PULL` 分页结果正确：`nextCursor` 单调递增，`hasMore` 与实际剩余一致
+- [x] `PULL` 发送队列满时提前结束本页，`hasMore=true` 且游标指向最后成功入队记录
+- [x] Retry Worker 按退避重推未确认投递，`attempts` 正确递增
+- [x] 达到最大重试次数后投递进入 `FAILED` 且不再重推
+- [x] TTL 到期后消息与未终态投递进入 `EXPIRED`，不再重试、不再被 PULL 命中
+- [x] 消息状态聚合正确：全终态为 `COMPLETED`，部分终态为 `PARTIAL`，无终态保持 `ACCEPTED`
+- [x] 受理后重启进程，重新登录的收件端仍能 PULL 到原消息
+- [x] 数据库运行期不可用时 `SEND` 回 `SEND_ACK{status=INTERNAL}`，连接保持可用
+- [x] 新增 5 种帧类型，既有 9 种帧编号、帧头与 Body 语义不变
+- [x] `DELIVER` 帧头 `MsgID` 为平台消息 ID，Body 布局与 Phase 1 一致
+- [x] 每连接仍为 2 协程，Retry/TTL Worker 固定 1 个，单 Socket 无并发写
+- [x] 协程泄漏检查通过（相对基线偏差不超过 5）
+- [x] 数据库测试在未设置 `RELAYX_TEST_DSN` 时 skip，`make test-db` 连接本机 Docker 后可重复执行且全绿
+- [x] `gofmt` 无输出、`go vet` 通过、Docker `go test -race ./...` 通过
+- [x] `phase2/docs/` 包含 README、数据模型、压测报告与 ADR-007/008/009
+- [x] 千连接可靠模式压测完成，给出受理/投递 RTT、ACK 丢失、重试与 DB 连接数据

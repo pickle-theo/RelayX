@@ -1,0 +1,21 @@
+# Checklist
+
+- [x] 项目可通过 `go build ./...`（在 `phase0/` 目录执行），`go.mod` module 名为 `relayx/phase0`，目录结构符合 `cmd/` + `internal/` 分层
+- [x] 帧头固定 21 字节，字段顺序与长度与 spec 表一致，使用大端序
+- [x] `protocol.Encode` / `protocol.Decode` 往返一致，空 Body 与最大 Body 均正确
+- [x] 非法 Magic、非法 Version、非 0 Flags、超长 BodyLen、CRC 错误分别返回对应哨兵错误，且无 panic
+- [x] 粘包场景下连续 `Decode` 能正确切分两个帧
+- [x] 半包场景下 `Decode` 能等待并拼接完整帧，帧中途 EOF 返回 `io.ErrUnexpectedEOF`
+- [x] 每个连接只有一个 Writer 协程执行写操作；`go test -race -count=2 ./...` 经本机 Docker（golang:1.27）执行通过，无 data race
+- [x] 发送队列为有界 channel，队列满时关闭连接而非阻塞读循环或无限增长内存
+- [x] 客户端强制断开后服务端 1 秒内完成连接注销、队列关闭与协程回收
+- [x] 服务端按 `-heartbeat-interval` 发送 PING，超时未收到 PONG 时关闭连接并记录原因
+- [x] 连接超过 `-idle-timeout` 无入站帧时读循环退出并清理连接
+- [x] 发送 `os.Interrupt` 后 gateway 停止 Accept、广播 CLOSE、在 `-shutdown-timeout` 内退出且退出码为 0
+- [x] `phase0/cmd/client` 可连接 gateway、周期发送 DATA、自动回 PONG、Ctrl+C 正常退出
+- [x] `go vet ./...`、`go test ./...` 与 Docker 中的 `go test -race ./...` 全部通过（20 个测试函数，`-count=3` 稳定通过）
+- [x] 集成测试结束后活动协程数与测试前基线偏差不超过 5
+- [x] 1,000 并发连接压测成功率达到 100%，结果文件包含内存、协程数与 RTT 分位数
+- [x] `phase0/docs/README.md` 包含运行方式、配置项、帧格式与验收对照
+- [x] `phase0/docs/adr/ADR-001.md`、`phase0/docs/adr/ADR-002.md` 按七段式（背景/问题/候选方案/选择/理由/优缺点/演进）完成
+- [x] 未实现 Session、身份绑定、消息路由、数据库、Redis、Kafka 等超出 Phase 0 范围的功能

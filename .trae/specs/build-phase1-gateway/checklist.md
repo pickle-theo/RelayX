@@ -1,0 +1,23 @@
+# Checklist
+
+- [x] `phase1/` 是独立 Go module（`relayx/phase1`），`phase0/` 与 `phase0.5/` 未被修改
+- [x] 根 `go.work` 包含 `./phase1`，根 `Makefile` 的 `PHASES` 包含 `phase1`
+- [x] `phase1/` 中 `go build ./...`、`go vet ./...`、`go test ./...` 通过
+- [x] 新增 `LOGIN`/`LOGIN_ACK`/`SEND`/`DELIVER` 四种帧类型，21 字节帧头与既有帧类型语义不变
+- [x] 身份与目标长度超过上限时返回哨兵错误，且不按超长长度分配内存
+- [x] `LOGIN` 成功后返回 `sessionID>0` 的 `LOGIN_ACK`，注册表可按 user/device 查到 Session
+- [x] 同一 user_id 的多个 device 可同时在线，互不覆盖
+- [x] 同一 `(user_id, device_id)` 重复登录时旧连接被关闭，注册表只保留新 Session
+- [x] 客户端断开后 Session 被清理，`ActiveSessions` 计数回落
+- [x] 按 user_id 投递会 fan-out 到该用户全部在线设备，且 `fromUser`/`fromDevice` 正确
+- [x] 按 endpoint（Session ID）投递只到达目标设备
+- [x] 目标离线/不存在时发送方收到 `ERROR` 帧且连接保持可用
+- [x] 未登录连接发送 `SEND` 被拒绝，没有任何投递发生
+- [x] 已登录连接重复 `LOGIN` 返回失败状态且不影响原 Session
+- [x] `DATA` 回显行为与 Phase 0/0.5 一致
+- [x] 目标连接队列满时按背压关闭目标连接并清理 Session，发送方不受影响
+- [x] 每连接仍为 2 个协程，单 Socket 无并发写
+- [x] 集成测试覆盖登录、fan-out、定向、重复登录、离线错误、断线清理
+- [x] 协程泄漏检查通过（相对基线偏差不超过 5）
+- [x] `gofmt` 无输出、`go vet` 通过、Docker `go test -race ./...` 通过
+- [x] `phase1/docs/` 包含 README、ADR-005、ADR-006 与压测报告

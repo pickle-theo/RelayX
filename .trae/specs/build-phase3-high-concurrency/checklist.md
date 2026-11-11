@@ -1,0 +1,29 @@
+# Checklist
+
+- [x] `phase3/` 是独立 Go module（`relayx/phase3`），根 `go.work` 与根 `Makefile` 的 `PHASES` 包含 `phase3`，`phase0/`、`phase0.5/`、`phase1/`、`phase2/` 未被修改
+- [x] 复制基线在 `phase3/` 内 `gofmt -l .` 无输出、`go vet ./...` 通过、`go test ./...` 通过
+- [x] 既有帧编号、帧头与 Body 布局与 Phase 2 完全一致，协议测试未删改语义
+- [x] 压测脚本可在 Linux 容器内一键执行 1k / 10k 场景，固定并记录 `ulimit -n`、连接数、间隔、Payload、时长
+- [x] 每份压测报告包含 Go/内核/CPU/内存/Docker 版本、参数、原始输出与退出码
+- [x] Gateway 支持 `-pprof-addr` 且默认关闭；开启后可获取 CPU、heap、goroutine、block、mutex 与 trace
+- [x] `-block-profile-rate`、`-mutex-profile-fraction` 可配置且生效
+- [x] stats 包含协程数、`heap_alloc`、`heap_sys`、GC 次数与最近暂停、活跃连接/会话、DB 连接数
+- [x] `loadtest` 支持 idle / heartbeat / steady-low / steady-high / slow-consumer / large-payload / reconnect-storm 七种场景
+- [x] slow-consumer 场景能统计慢消费者数量，且 Gateway 内存不随时间单调增长
+- [x] reconnect-storm 场景全部客户端在超时内重连并登录成功，协程数回落
+- [x] 基线数据在 1k 与 10k 下完整采集，且采集时间早于任何优化代码
+- [x] 已尝试 50k 并记录最大稳定连接数与失败阶段
+- [x] 已尝试 100k 并记录环境限制（FD、临时端口、TIME_WAIT、CPU/内存等）
+- [x] 瓶颈分析给出至少三个瓶颈，每个都附指标与 profile 证据
+- [x] 完成至少两轮优化，每轮都有假设、改动、同参数复测与前后对比
+- [x] 至少两项核心指标相对基线有可量化改进（目标 ≥20%），未达标项有数据解释
+- [x] 无收益或引入回归的改动已回退，并在报告中记录否决理由
+- [x] 优化后既有功能、可靠投递语义与 `-race` 测试全部通过
+- [x] 心跳/协程模型未被修改；单 Socket 单 Writer、心跳及时性、慢消费者隔离与泄漏检查均有测试覆盖（`TestWriteBatchOrderAndClose`、`TestWriteCallsBatched`、`TestPullPagination`、`TestNoGoroutineLeak`、`TestServerNoGoroutineLeak`）
+- [x] `phase3/experiments/netlib-compare/` 是独立 module，包含标准库与 gnet（必要时 netpoll）的可比 echo 服务
+- [x] 对比实验给出 1k / 10k 的吞吐、P99、内存与协程模型数据，并写入 ADR-012
+- [x] `phase3` 主 module 的 `go list -m all` 不包含 gnet、netpoll 或实验模块依赖
+- [x] 协程泄漏检查通过（相对基线偏差不超过 5）
+- [x] 最终 `gofmt`、`go vet`、`go test ./...`、Docker `go test -race ./...` 全部通过并记录实际输出
+- [x] `phase3/docs/` 包含 README、基线报告、优化报告、容量边界报告与 ADR-010/011/012
+- [x] 文档中的数据与最终二进制复跑结果一致，未筛选或拼接压测数据
