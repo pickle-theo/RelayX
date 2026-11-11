@@ -1,4 +1,4 @@
-# RelayX Phase 4 Makefile
+# RelayX Phase 5 Makefile
 #
 # 依赖：Go 1.27+；PostgreSQL/Redis 仅通过本机 Docker 运行；fmt/fmt-check 需要 sh
 # （Windows 请在 Git Bash / MSYS2 / WSL 中执行 make）。
@@ -18,6 +18,17 @@ REDIS_CONTAINER ?= relayx-phase4-redis
 REDIS_IMAGE     ?= redis:7-alpine
 REDIS_PORT      ?= 6379
 
+# Kafka used by the outbox relay and the fan-out/delivery workers. A single
+# KRaft broker is enough for local verification; the container name is phase5
+# specific so it does not clash with other phases.
+KAFKA_CONTAINER ?= relayx-phase5-kafka
+KAFKA_IMAGE     ?= apache/kafka:3.9.0
+KAFKA_PORT      ?= 9092
+KAFKA_CLUSTER_ID ?= MkU3OEVBNTcwNTJENDM2Qk
+KAFKA_BROKERS   ?= 127.0.0.1:9092
+FANOUT_TOPIC    ?= relayx.fanout.v1
+DELIVER_TOPIC   ?= relayx.deliver.v1
+
 # Load-test container settings (used by bench* targets; see bench/run.ps1 for
 # the Windows wrapper, since Windows hosts often have no make).
 BENCH_RAW ?= docs/bench/raw
@@ -30,16 +41,18 @@ ifeq ($(OS),Windows_NT)
 EXE := .exe
 endif
 
-.PHONY: all help build gateway client loadtest test test-db race vet fmt fmt-check \
-	run-gateway run-client load bench bench-go bench-1k bench-10k bench-50k \
+.PHONY: all help build gateway client loadtest message-service delivery-worker test test-db race vet fmt fmt-check \
+	run-gateway run-client run-worker run-message-service load bench bench-go bench-1k bench-10k bench-50k \
 	bench-profile profile clean db-up db-wait db-down db-reset \
-	redis-up redis-down redis-ping cluster-smoke cluster-fault cluster-redis-outage
+	redis-up redis-down redis-ping cluster-smoke cluster-fault cluster-redis-outage \
+	kafka-up kafka-down kafka-topics kafka-ping \
+	engine-e2e engine-fault tenant-limit
 
 all: fmt-check vet test build
 
 help:
-	@echo "RelayX Phase 4 targets:"
-	@echo "  make build        构建 gateway/client/loadtest 到 $(BIN_DIR)/"
+	@echo "RelayX Phase 5 targets:"
+	@echo "  make build        构建 gateway/client/loadtest/message-service/delivery-worker 到 $(BIN_DIR)/"
 	@echo "  make test         go test ./...（不设置 DSN 时跳过数据库用例）"
 	@echo "  make test-db      设置 RELAYX_TEST_DSN 后执行全量测试"
 	@echo "  make db-up        启动本机 Docker PostgreSQL 并等待 healthy"
@@ -65,9 +78,16 @@ help:
 	@echo "  make cluster-smoke  3 节点集群冒烟（scripts/cluster-smoke.ps1）"
 	@echo "  make cluster-fault  kill -9 故障注入（scripts/cluster-fault.ps1）"
 	@echo "  make cluster-redis-outage  Redis 不可用（scripts/cluster-redis-outage.ps1）"
+	@echo "  make kafka-up     启动本机 Docker Kafka（KRaft 单 broker，名称 $(KAFKA_CONTAINER)）"
+	@echo "  make kafka-down   停止并删除 Kafka 容器"
+	@echo "  make kafka-topics 创建 $(FANOUT_TOPIC) 与 $(DELIVER_TOPIC)"
+	@echo "  make kafka-ping   列出 Kafka 主题"
+	@echo "  make engine-e2e   受理→outbox→fan-out→投递→两级 ACK 端到端验证"
+	@echo "  make engine-fault Worker 崩溃接管与 Kafka 停机的故障验证"
+	@echo "  make tenant-limit 租户限速隔离验证"
 	@echo "  make clean        清理构建产物与 profile 文件"
 
-build: gateway client loadtest
+build: gateway client loadtest message-service delivery-worker
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
@@ -80,6 +100,12 @@ client: | $(BIN_DIR)
 
 loadtest: | $(BIN_DIR)
 	$(GO) build -o $(BIN_DIR)/loadtest$(EXE) ./cmd/loadtest
+
+message-service: | $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/message-service$(EXE) ./cmd/message-service
+
+delivery-worker: | $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/delivery-worker$(EXE) ./cmd/delivery-worker
 
 test:
 	$(GO) test ./...
@@ -135,6 +161,47 @@ redis-down:
 redis-ping:
 	$(DOCKER) exec $(REDIS_CONTAINER) redis-cli ping
 
+# Single-node KRaft broker. 9092 is the client listener; 9093 is the controller
+# listener and stays inside the container network.
+kafka-up:
+	@$(DOCKER) rm -f $(KAFKA_CONTAINER) >/dev/null 2>&1 || true
+	$(DOCKER) run -d --name $(KAFKA_CONTAINER) -p $(KAFKA_PORT):9092 \
+		-e CLUSTER_ID=$(KAFKA_CLUSTER_ID) \
+		-e KAFKA_NODE_ID=1 \
+		-e KAFKA_PROCESS_ROLES=broker,controller \
+		-e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+		-e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:$(KAFKA_PORT) \
+		-e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+		-e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+		-e KAFKA_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9093 \
+		-e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+		-e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+		-e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+		-e KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0 \
+		$(KAFKA_IMAGE)
+	@i=0; \
+		while [ $$i -lt 60 ]; do \
+			if $(DOCKER) exec $(KAFKA_CONTAINER) /opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list >/dev/null 2>&1; then \
+				echo "$(KAFKA_CONTAINER) 已就绪"; exit 0; \
+			fi; \
+			i=$$((i+1)); sleep 1; \
+		done; \
+		echo "$(KAFKA_CONTAINER) 在 60s 内未就绪"; exit 1
+	@$(MAKE) --no-print-directory kafka-topics
+	@$(MAKE) --no-print-directory kafka-ping
+
+kafka-down:
+	@$(DOCKER) rm -f $(KAFKA_CONTAINER) >/dev/null 2>&1 || true
+
+kafka-topics:
+	@$(DOCKER) exec $(KAFKA_CONTAINER) /opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 \
+		--create --if-not-exists --topic $(FANOUT_TOPIC) --partitions 3 --replication-factor 1
+	@$(DOCKER) exec $(KAFKA_CONTAINER) /opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 \
+		--create --if-not-exists --topic $(DELIVER_TOPIC) --partitions 3 --replication-factor 1
+
+kafka-ping:
+	$(DOCKER) exec $(KAFKA_CONTAINER) /opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list
+
 # Cluster scenarios run as Windows PowerShell scripts (no gcc, so no -race).
 PS ?= powershell
 
@@ -146,6 +213,15 @@ cluster-fault:
 
 cluster-redis-outage:
 	$(PS) -NoProfile -ExecutionPolicy Bypass -File scripts/cluster-redis-outage.ps1
+
+engine-e2e:
+	$(PS) -NoProfile -ExecutionPolicy Bypass -File scripts/engine-e2e.ps1
+
+engine-fault:
+	$(PS) -NoProfile -ExecutionPolicy Bypass -File scripts/engine-fault.ps1
+
+tenant-limit:
+	$(PS) -NoProfile -ExecutionPolicy Bypass -File scripts/tenant-limit.ps1
 
 race:
 	$(DOCKER) run --rm -v "$(CURDIR):/app" -w /app $(GO_IMAGE) $(GO) test -race -count=1 ./...
@@ -165,6 +241,12 @@ run-gateway:
 
 run-client:
 	$(GO) run ./cmd/client -addr $(ADDR) $(ARGS)
+
+run-message-service:
+	$(GO) run ./cmd/message-service $(ARGS)
+
+run-worker:
+	$(GO) run ./cmd/delivery-worker $(ARGS)
 
 load:
 	$(GO) run ./cmd/loadtest -addr $(ADDR) -conns 1000 -duration 60s -ramp 5s
