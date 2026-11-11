@@ -5,7 +5,7 @@
 #
 # 用法示例：make test / make race / make phase0-build
 
-PHASES := phase0 phase0.5 phase1 phase2 phase3 phase4
+PHASES := phase0 phase0.5 phase1 phase2 phase3 phase4 phase5
 
 .PHONY: all help test race vet fmt-check build clean $(PHASES)
 
