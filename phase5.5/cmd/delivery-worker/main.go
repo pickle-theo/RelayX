@@ -23,7 +23,9 @@ import (
 	"relayx/phase5.5/internal/registry"
 	"relayx/phase5.5/internal/shard"
 	"relayx/phase5.5/internal/store"
-	"relayx/phase5.5/internal/tenant"
+	"relayx/phase5.5/internal/tenant/global"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -88,11 +90,15 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 	// sessions running in this very process, which never happens in the worker.
 	var routes registry.Registry
 	var hub *cluster.Hub
+	var redisClient redis.UniversalClient
 	if cfg.RedisAddr != "" {
 		reg, err := registry.NewRedis(ctx, registry.RedisConfig{
-			Addr:     cfg.RedisAddr,
-			Password: cfg.RedisPassword,
-			DB:       cfg.RedisDB,
+			Addr:          cfg.RedisAddr,
+			Password:      cfg.RedisPassword,
+			DB:            cfg.RedisDB,
+			Mode:          cfg.RedisMode,
+			MasterName:    cfg.RedisMasterName,
+			SentinelAddrs: cfg.RedisSentinelAddrs,
 		})
 		if err != nil {
 			return fmt.Errorf("cluster: Redis unavailable at %s: %w", cfg.RedisAddr, err)
@@ -103,6 +109,7 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 			}
 		}()
 		routes = reg
+		redisClient = reg.Client()
 
 		dialHub, err := cluster.NewHub(cluster.Config{
 			NodeID:      workerID,
@@ -122,7 +129,17 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 		hub = dialHub
 	}
 
-	limiter := tenant.NewLimiter(st, cfg.TenantCacheTTL, cfg.DefaultInflight)
+	// The cluster-wide limiter keeps the token bucket in Redis, so the tenant
+	// rate holds for the whole fleet instead of every worker separately. The
+	// tokens are taken in batches, which keeps the request rate against Redis
+	// low while the total delivery rate still honours the quota.
+	limiter := global.New(redisClient, st, global.Options{
+		Batch:           cfg.TenantTokenBatch,
+		CacheTTL:        cfg.TenantCacheTTL,
+		DefaultInflight: cfg.DefaultInflight,
+		FailOpen:        cfg.TenantQuotaFailOpen,
+		Logger:          logger,
+	})
 
 	// The virtual shard assignment is maintained online. Every worker
 	// registers itself with a liveness lease and the rebalancer splits the
@@ -268,7 +285,7 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 	return runErr
 }
 
-func statsLoop(interval time.Duration, st *store.Store, pool *engine.Engine, limiter *tenant.Limiter, logger *slog.Logger, stop <-chan struct{}) {
+func statsLoop(interval time.Duration, st *store.Store, pool *engine.Engine, limiter *global.Limiter, logger *slog.Logger, stop <-chan struct{}) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

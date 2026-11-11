@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -17,6 +18,17 @@ const (
 	cleanupLockPrefix = "node_cleanup:"
 )
 
+// Redis topology modes.
+const (
+	// RedisModeSingle connects to one Redis instance.
+	RedisModeSingle = "single"
+	// RedisModeSentinel connects through Redis Sentinel and follows the
+	// master when it fails over.
+	RedisModeSentinel = "sentinel"
+	// RedisModeCluster connects to a Redis Cluster.
+	RedisModeCluster = "cluster"
+)
+
 // RedisConfig configures the Redis-backed registry.
 type RedisConfig struct {
 	Addr     string
@@ -24,6 +36,13 @@ type RedisConfig struct {
 	DB       int
 	Prefix   string        // key namespace, defaults to "relayx:"
 	NodeTTL  time.Duration // node entry lifetime, defaults to 15s
+
+	// Mode selects the topology: "single" (default), "sentinel" or "cluster".
+	Mode string
+	// MasterName is the sentinel master name, required in sentinel mode.
+	MasterName string
+	// SentinelAddrs lists the sentinel addresses, required in sentinel mode.
+	SentinelAddrs []string
 }
 
 // Redis stores cluster membership and routes in a single Redis instance.
@@ -37,7 +56,7 @@ type RedisConfig struct {
 //	<node_routes:<id>>      SET of full route keys owned by the node
 //	<node_cleanup:<id>>     sweep lock, SET NX PX 30s
 type Redis struct {
-	client  *redis.Client
+	client  redis.UniversalClient
 	prefix  string
 	nodeTTL time.Duration
 }
@@ -45,6 +64,9 @@ type Redis struct {
 var _ Registry = (*Redis)(nil)
 
 // NewRedis connects to Redis and verifies the connection with a PING.
+//
+// The topology is selected by Mode: a single instance, a Sentinel setup that
+// follows the master during a failover, or a Redis Cluster.
 func NewRedis(ctx context.Context, cfg RedisConfig) (*Redis, error) {
 	prefix := cfg.Prefix
 	if prefix == "" {
@@ -55,16 +77,78 @@ func NewRedis(ctx context.Context, cfg RedisConfig) (*Redis, error) {
 		ttl = defaultNodeTTL
 	}
 
-	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.Addr,
-		Password: cfg.Password,
-		DB:       cfg.DB,
-	})
-	if err := client.Ping(ctx).Err(); err != nil {
-		_ = client.Close()
-		return nil, fmt.Errorf("registry: ping redis %s: %w", cfg.Addr, err)
+	client, err := dialRedis(ctx, cfg)
+	if err != nil {
+		return nil, err
 	}
 	return &Redis{client: client, prefix: prefix, nodeTTL: ttl}, nil
+}
+
+// dialRedis creates the client for the configured topology and verifies it.
+func dialRedis(ctx context.Context, cfg RedisConfig) (redis.UniversalClient, error) {
+	mode := strings.ToLower(strings.TrimSpace(cfg.Mode))
+	switch mode {
+	case "", RedisModeSingle:
+		client := redis.NewClient(&redis.Options{
+			Addr:     cfg.Addr,
+			Password: cfg.Password,
+			DB:       cfg.DB,
+		})
+		if err := client.Ping(ctx).Err(); err != nil {
+			_ = client.Close()
+			return nil, fmt.Errorf("registry: ping redis %s: %w", cfg.Addr, err)
+		}
+		return client, nil
+
+	case RedisModeSentinel:
+		if cfg.MasterName == "" || len(cfg.SentinelAddrs) == 0 {
+			return nil, fmt.Errorf("registry: sentinel mode needs a master name and sentinel addresses")
+		}
+		client := redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:    cfg.MasterName,
+			SentinelAddrs: cfg.SentinelAddrs,
+			Password:      cfg.Password,
+			DB:            cfg.DB,
+			PoolSize:      32,
+			MinIdleConns:  2,
+		})
+		if err := client.Ping(ctx).Err(); err != nil {
+			_ = client.Close()
+			return nil, fmt.Errorf("registry: ping sentinel master %s: %w", cfg.MasterName, err)
+		}
+		return client, nil
+
+	case RedisModeCluster:
+		addrs := cfg.SentinelAddrs
+		if len(addrs) == 0 && cfg.Addr != "" {
+			addrs = []string{cfg.Addr}
+		}
+		if len(addrs) == 0 {
+			return nil, fmt.Errorf("registry: cluster mode needs at least one address")
+		}
+		client := redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:    addrs,
+			Password: cfg.Password,
+			PoolSize: 32,
+		})
+		if err := client.Ping(ctx).Err(); err != nil {
+			_ = client.Close()
+			return nil, fmt.Errorf("registry: ping redis cluster: %w", err)
+		}
+		return client, nil
+
+	default:
+		return nil, fmt.Errorf("registry: unknown redis mode %q", cfg.Mode)
+	}
+}
+
+// Client returns the underlying client so other packages can share the
+// connection, for example the cluster-wide tenant quota.
+func (r *Redis) Client() redis.UniversalClient {
+	if r == nil {
+		return nil
+	}
+	return r.client
 }
 
 func (r *Redis) nodesKey() string {

@@ -40,6 +40,14 @@ type WorkerConfig struct {
 	DefaultInflight int
 	TenantCacheTTL  time.Duration
 
+	// TenantTokenBatch is the number of tokens the worker takes from the
+	// cluster-wide bucket in one call.
+	TenantTokenBatch int
+	// TenantQuotaFailOpen keeps the deliveries running when the quota backend
+	// is unavailable. The default is fail closed, so a quota outage cannot
+	// amplify the traffic.
+	TenantQuotaFailOpen bool
+
 	// ShardSpace is the size of the fixed virtual shard space.
 	ShardSpace int
 	// ShardRebalanceInterval is the period of the online rebalance.
@@ -59,13 +67,19 @@ type WorkerConfig struct {
 	OutboxInterval time.Duration
 	StatsInterval  time.Duration
 
-	RedisAddr       string
-	RedisPassword   string
-	RedisDB         int
-	NodeID          string
-	NodeDialTimeout time.Duration
-	MaxBody         int
-	ShutdownTimeout time.Duration
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
+	// RedisMode selects the topology: "single" (default), "sentinel" or "cluster".
+	RedisMode string
+	// RedisMasterName is the sentinel master name.
+	RedisMasterName string
+	// RedisSentinelAddrs lists the sentinel addresses.
+	RedisSentinelAddrs []string
+	NodeID             string
+	NodeDialTimeout    time.Duration
+	MaxBody            int
+	ShutdownTimeout    time.Duration
 }
 
 // Validate checks the worker settings.
@@ -217,6 +231,8 @@ func ParseWorker(args []string) (WorkerConfig, error) {
 	fs.DurationVar(&cfg.ShardLeaseTTL, "shard-lease-ttl", 30*time.Second, "liveness lease of a worker registration")
 	fs.IntVar(&cfg.DefaultInflight, "default-inflight", 256, "default in-flight limit for tenants without a quota")
 	fs.DurationVar(&cfg.TenantCacheTTL, "tenant-cache-ttl", 30*time.Second, "tenant quota cache lifetime")
+	fs.IntVar(&cfg.TenantTokenBatch, "tenant-token-batch", 32, "tokens taken from the cluster-wide bucket per request")
+	fs.BoolVar(&cfg.TenantQuotaFailOpen, "tenant-quota-fail-open", false, "keep delivering when the quota backend is unavailable")
 	fs.DurationVar(&cfg.ScanInterval, "scan-interval", time.Second, "delivery due scan interval")
 	fs.IntVar(&cfg.MaxAttempts, "retry-max-attempts", 5, "maximum push attempts per delivery")
 	fs.DurationVar(&cfg.RetryBackoffBase, "retry-backoff-base", 2*time.Second, "base retry backoff")
@@ -228,6 +244,9 @@ func ParseWorker(args []string) (WorkerConfig, error) {
 	fs.StringVar(&cfg.RedisAddr, "redis-addr", "", "Redis address for route lookup (empty disables routing)")
 	fs.StringVar(&cfg.RedisPassword, "redis-password", "", "Redis password (empty means no auth)")
 	fs.IntVar(&cfg.RedisDB, "redis-db", 0, "Redis logical database")
+	fs.StringVar(&cfg.RedisMode, "redis-mode", "single", "Redis topology: single, sentinel or cluster")
+	fs.StringVar(&cfg.RedisMasterName, "redis-master-name", "", "sentinel master name (sentinel mode only)")
+	sentinelAddrs := fs.String("redis-sentinel-addrs", "", "sentinel addresses, comma separated (sentinel mode only)")
 	fs.StringVar(&cfg.NodeID, "node-id", "", "worker node id used for leases (empty generates one)")
 	fs.DurationVar(&cfg.NodeDialTimeout, "node-dial-timeout", time.Second, "timeout for dialing a gateway node")
 	fs.IntVar(&cfg.MaxBody, "max-body", 1<<20, "maximum node frame body size")
@@ -239,6 +258,11 @@ func ParseWorker(args []string) (WorkerConfig, error) {
 	for _, part := range strings.Split(brokers, ",") {
 		if broker := strings.TrimSpace(part); broker != "" {
 			cfg.KafkaBrokers = append(cfg.KafkaBrokers, broker)
+		}
+	}
+	for _, part := range strings.Split(*sentinelAddrs, ",") {
+		if addr := strings.TrimSpace(part); addr != "" {
+			cfg.RedisSentinelAddrs = append(cfg.RedisSentinelAddrs, addr)
 		}
 	}
 	if err := cfg.Validate(); err != nil {

@@ -16,7 +16,6 @@ import (
 	"relayx/phase5.5/internal/registry"
 	"relayx/phase5.5/internal/session"
 	"relayx/phase5.5/internal/store"
-	"relayx/phase5.5/internal/tenant"
 )
 
 // Config controls one delivery worker.
@@ -57,6 +56,13 @@ type Forwarder interface {
 	ForwardDeliver(ctx context.Context, nodeID, addr string, msgID uint64, body *protocol.NodeDeliverBody) error
 }
 
+// QuotaLimiter reserves one delivery slot of a tenant. The engine accepts the
+// local limiter of a single node and the cluster-wide limiter, so the same
+// engine runs in both deployments.
+type QuotaLimiter interface {
+	Acquire(ctx context.Context, tenantID string, now time.Time) (release func(), retryAfter time.Duration, ok bool, err error)
+}
+
 // Engine is the lease-based delivery scheduler.
 type Engine struct {
 	cfg       Config
@@ -65,7 +71,7 @@ type Engine struct {
 	deliverer *delivery.Deliverer
 	routes    registry.Registry
 	forwarder Forwarder
-	limiter   *tenant.Limiter
+	limiter   QuotaLimiter
 	shards    ShardProvider
 
 	claimed   atomic.Int64
@@ -97,7 +103,7 @@ func New(
 	deliverer *delivery.Deliverer,
 	routes registry.Registry,
 	forwarder Forwarder,
-	limiter *tenant.Limiter,
+	limiter QuotaLimiter,
 	shards ShardProvider,
 ) *Engine {
 	if cfg.Logger == nil {
