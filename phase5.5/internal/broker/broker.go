@@ -33,10 +33,6 @@ type Message struct {
 	Value     []byte
 }
 
-// Handler consumes one message. Returning an error leaves the offset uncommitted
-// so the record is redelivered after the consumer restarts or re-seeks.
-type Handler func(ctx context.Context, msg Message) error
-
 // Producer publishes records with acks=all. Every record carries an explicit
 // partition key so the same endpoint always lands on the same partition.
 type Producer struct {
@@ -83,78 +79,6 @@ func (p *Producer) Close() error {
 		return nil
 	}
 	return p.writer.Close()
-}
-
-// Consumer reads one topic under one group and commits manually after the
-// handler succeeds.
-type Consumer struct {
-	reader *kafka.Reader
-}
-
-// NewConsumer returns a consumer that never auto-commits.
-func NewConsumer(brokers []string, group, topic string) (*Consumer, error) {
-	if len(brokers) == 0 {
-		return nil, ErrNoBrokers
-	}
-	if group == "" || topic == "" {
-		return nil, errors.New("broker: group and topic must not be empty")
-	}
-	return &Consumer{reader: kafka.NewReader(kafka.ReaderConfig{
-		Brokers:                brokers,
-		GroupID:                group,
-		Topic:                  topic,
-		MinBytes:               1,
-		MaxBytes:               1 << 20,
-		MaxWait:                500 * time.Millisecond,
-		CommitInterval:         0,
-		PartitionWatchInterval: 500 * time.Millisecond,
-		WatchPartitionChanges:  true,
-		Dialer:                 &kafka.Dialer{Timeout: defaultDialTimeout},
-		Logger:                 kafkaLogger{},
-	})}, nil
-}
-
-// Run consumes until ctx is cancelled or an unrecoverable read error occurs.
-// A handler error is returned immediately: the offset stays uncommitted so the
-// record is redelivered later.
-func (c *Consumer) Run(ctx context.Context, handler Handler) error {
-	if c == nil || c.reader == nil {
-		return errors.New("broker: consumer closed")
-	}
-	for {
-		m, err := c.reader.FetchMessage(ctx)
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, context.Canceled) {
-				return nil
-			}
-			return fmt.Errorf("broker: fetch from %s: %w", c.reader.Config().Topic, err)
-		}
-		msg := Message{
-			Topic:     m.Topic,
-			Partition: m.Partition,
-			Offset:    m.Offset,
-			Key:       m.Key,
-			Value:     m.Value,
-		}
-		if err := handler(ctx, msg); err != nil {
-			return err
-		}
-		if err := c.reader.CommitMessages(ctx, m); err != nil {
-			if ctx.Err() != nil {
-				return nil
-			}
-			return fmt.Errorf("broker: commit %s/%d/%d: %w", m.Topic, m.Partition, m.Offset, err)
-		}
-	}
-}
-
-// Close releases the consumer connection. A pending uncommitted offset is
-// dropped, so the record is redelivered on the next start.
-func (c *Consumer) Close() error {
-	if c == nil || c.reader == nil {
-		return nil
-	}
-	return c.reader.Close()
 }
 
 // EnsureTopics creates the topics if they do not exist yet. It is safe to call

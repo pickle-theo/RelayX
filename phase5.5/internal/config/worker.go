@@ -19,10 +19,22 @@ type WorkerConfig struct {
 	KafkaBrokers []string
 	FanoutTopic  string
 	DeliverTopic string
+	// DLQTopic receives the records that can never be processed. An empty
+	// value disables the dead-letter path.
+	DLQTopic     string
 	FanoutGroup  string
 	DeliverGroup string
 	FanoutBatch  int
 	ClaimBatch   int
+
+	// ConsumerMaxAttempts bounds the attempts for one Kafka record before it
+	// is treated as poison and moved to the dead-letter topic.
+	ConsumerMaxAttempts int
+	// ConsumerRetryBackoff is the delay before the next handler attempt.
+	ConsumerRetryBackoff time.Duration
+	// ConsumerFetchBackoff is the delay before the next fetch after a broker
+	// error.
+	ConsumerFetchBackoff time.Duration
 
 	LeaseTTL        time.Duration
 	Shards          int
@@ -76,6 +88,15 @@ func (c WorkerConfig) Validate() error {
 	}
 	if strings.TrimSpace(c.DeliverTopic) == "" {
 		return fmt.Errorf("deliver-topic must not be empty")
+	}
+	if c.ConsumerMaxAttempts < 1 {
+		return fmt.Errorf("consumer-max-attempts must be at least 1, got %d", c.ConsumerMaxAttempts)
+	}
+	if err := validatePositiveDuration("consumer-retry-backoff", c.ConsumerRetryBackoff); err != nil {
+		return err
+	}
+	if err := validatePositiveDuration("consumer-fetch-backoff", c.ConsumerFetchBackoff); err != nil {
+		return err
 	}
 	if strings.TrimSpace(c.FanoutGroup) == "" {
 		return fmt.Errorf("fanout-group must not be empty")
@@ -168,10 +189,14 @@ func ParseWorker(args []string) (WorkerConfig, error) {
 	fs.StringVar(&brokers, "kafka-brokers", "127.0.0.1:9092", "comma-separated Kafka brokers")
 	fs.StringVar(&cfg.FanoutTopic, "fanout-topic", "relayx.fanout.v1", "fan-out topic")
 	fs.StringVar(&cfg.DeliverTopic, "deliver-topic", "relayx.deliver.v1", "delivery task topic")
+	fs.StringVar(&cfg.DLQTopic, "dlq-topic", "relayx.dlq.v1", "dead-letter topic (empty disables the dead-letter path)")
 	fs.StringVar(&cfg.FanoutGroup, "fanout-group", "relayx-fanout", "fan-out consumer group")
 	fs.StringVar(&cfg.DeliverGroup, "deliver-group", "relayx-delivery", "delivery consumer group")
 	fs.IntVar(&cfg.FanoutBatch, "fanout-batch", 500, "maximum recipients inserted per fan-out batch")
 	fs.IntVar(&cfg.ClaimBatch, "claim-batch", 100, "maximum deliveries leased per scan")
+	fs.IntVar(&cfg.ConsumerMaxAttempts, "consumer-max-attempts", 5, "attempts per Kafka record before it is dead-lettered")
+	fs.DurationVar(&cfg.ConsumerRetryBackoff, "consumer-retry-backoff", 500*time.Millisecond, "delay before the next Kafka handler attempt")
+	fs.DurationVar(&cfg.ConsumerFetchBackoff, "consumer-fetch-backoff", 200*time.Millisecond, "delay before the next Kafka fetch after a broker error")
 	fs.DurationVar(&cfg.LeaseTTL, "lease-ttl", 30*time.Second, "delivery lease lifetime")
 	fs.IntVar(&cfg.Shards, "worker-shards", 1, "number of delivery scan shards")
 	fs.IntVar(&cfg.ShardIndex, "worker-shard-index", 0, "shard owned by this worker")

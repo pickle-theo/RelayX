@@ -58,16 +58,20 @@ UPDATE outbox
 SET attempts = attempts + 1,
     next_attempt_at = now() + make_interval(secs => LEAST(
         $2::float8 * power(2::float8, attempts::float8),
-        $3::float8))
+        $3::float8)),
+    last_error = $4
 WHERE id = $1`,
-					int64(pending[i].ID), backoffBase.Seconds(), backoffMax.Seconds()); uerr != nil {
+					int64(pending[i].ID), backoffBase.Seconds(), backoffMax.Seconds(),
+					truncateError(err.Error())); uerr != nil {
 					return fmt.Errorf("record outbox failure: %w", uerr)
 				}
 				return nil
 			}
+			// attempts counts failed publications only, so a healthy row keeps
+			// attempts at 0 and the column cannot be misread as a retry count.
 			if _, err := tx.ExecContext(ctx, `
 UPDATE outbox
-SET state = 1, published_at = now(), attempts = attempts + 1
+SET state = 1, published_at = now(), last_error = NULL
 WHERE id = $1`, int64(pending[i].ID)); err != nil {
 				return fmt.Errorf("mark outbox published: %w", err)
 			}
@@ -100,4 +104,52 @@ SELECT count(*) FROM deliveries WHERE lease_until IS NOT NULL AND lease_until > 
 		return 0, fmt.Errorf("store: count leased deliveries: %w", err)
 	}
 	return n, nil
+}
+
+// DeletePublishedOutbox removes outbox rows that were published before the
+// retention window and returns the number of removed rows. Pending rows are
+// never touched.
+func (s *Store) DeletePublishedOutbox(ctx context.Context, before time.Time, limit int) (int64, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	res, err := s.db.ExecContext(ctx, `
+DELETE FROM outbox
+WHERE id IN (
+    SELECT id FROM outbox
+    WHERE state = 1 AND published_at IS NOT NULL AND published_at < $1
+    ORDER BY id
+    LIMIT $2
+)`, before, limit)
+	if err != nil {
+		return 0, fmt.Errorf("store: delete published outbox: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("store: count deleted outbox rows: %w", err)
+	}
+	return n, nil
+}
+
+// OutboxDepth returns the age of the oldest unpublished outbox row. It is the
+// signal for "the event pipeline is falling behind".
+func (s *Store) OutboxDepth(ctx context.Context) (time.Duration, error) {
+	var oldest *time.Time
+	if err := s.db.QueryRowContext(ctx, `
+SELECT min(created_at) FROM outbox WHERE state = 0`).Scan(&oldest); err != nil {
+		return 0, fmt.Errorf("store: outbox depth: %w", err)
+	}
+	if oldest == nil {
+		return 0, nil
+	}
+	return time.Since(*oldest), nil
+}
+
+// truncateError bounds an error message so it cannot bloat a row.
+func truncateError(msg string) string {
+	const max = 1024
+	if len(msg) > max {
+		return msg[:max]
+	}
+	return msg
 }

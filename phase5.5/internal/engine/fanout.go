@@ -38,15 +38,17 @@ func NewFanout(st *store.Store, producer Publisher, batch int, logger *slog.Logg
 	return &Fanout{store: st, producer: producer, batch: batch, logger: logger}
 }
 
-// Handle processes one fan-out event body. Returning nil commits the offset;
-// only an infrastructure failure (database or Kafka) is reported so the event
-// is redelivered.
+// Handle processes one fan-out event body. Returning nil commits the offset.
+// A malformed or contract-violating event returns a permanent error so the
+// consumer moves it to the dead-letter topic instead of dropping it silently;
+// only an infrastructure failure (database or Kafka) is reported as a
+// retryable error.
 func (f *Fanout) Handle(ctx context.Context, body []byte) error {
 	ev, err := broker.DecodeFanout(body)
 	if err != nil {
-		// A malformed event can never succeed; log and commit it.
-		f.logger.Warn("discard malformed fan-out event", "error", err)
-		return nil
+		// A malformed event can never succeed: dead-letter it.
+		f.logger.Error("malformed fan-out event", "error", err)
+		return broker.Permanent(err)
 	}
 
 	switch store.TargetType(ev.TargetType) {
@@ -55,9 +57,10 @@ func (f *Fanout) Handle(ctx context.Context, body []byte) error {
 		if user == "" || device == "" {
 			parsedUser, parsedDevice, ok := message.ParseEndpointTarget(ev.Target)
 			if !ok {
-				f.logger.Warn("discard endpoint fan-out event without a resolvable target",
+				err := fmt.Errorf("engine: unresolvable endpoint target %q", ev.Target)
+				f.logger.Error("fan-out event with an unresolvable target", "error", err,
 					"tenant_id", ev.TenantID, "message_id", ev.MessageID, "target", ev.Target)
-				return nil
+				return broker.Permanent(err)
 			}
 			user, device = parsedUser, parsedDevice
 		}
@@ -76,9 +79,10 @@ func (f *Fanout) Handle(ctx context.Context, body []byte) error {
 		return f.fanoutUser(ctx, ev)
 
 	default:
-		f.logger.Warn("discard fan-out event with unknown target type",
+		err := fmt.Errorf("engine: unknown target type %d", ev.TargetType)
+		f.logger.Error("fan-out event with an unknown target type", "error", err,
 			"tenant_id", ev.TenantID, "message_id", ev.MessageID, "target_type", ev.TargetType)
-		return nil
+		return broker.Permanent(err)
 	}
 }
 

@@ -66,7 +66,8 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 		workerID = defaultWorkerID()
 	}
 
-	if err := broker.EnsureTopics(ctx, cfg.KafkaBrokers, broker.DefaultPartitions, cfg.FanoutTopic, cfg.DeliverTopic); err != nil {
+	if err := broker.EnsureTopics(ctx, cfg.KafkaBrokers, broker.DefaultPartitions,
+		cfg.FanoutTopic, cfg.DeliverTopic, cfg.DLQTopic); err != nil {
 		return err
 	}
 
@@ -137,7 +138,17 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 	relay := outbox.NewRelay(st, producer, cfg.OutboxBatch, cfg.OutboxInterval,
 		cfg.RetryBackoffBase, cfg.RetryBackoffMax, logger)
 
-	fanoutConsumer, err := broker.NewConsumer(cfg.KafkaBrokers, cfg.FanoutGroup, cfg.FanoutTopic)
+	consumerOpts := broker.ConsumerOptions{
+		DeadLetterTopic:     cfg.DLQTopic,
+		DeadLetterPublisher: producer,
+		DeadLetterRecorder:  engine.NewDeadLetterRecorder(st),
+		MaxHandlerAttempts:  cfg.ConsumerMaxAttempts,
+		RetryBackoff:        cfg.ConsumerRetryBackoff,
+		FetchBackoff:        cfg.ConsumerFetchBackoff,
+		Logger:              logger,
+	}
+
+	fanoutConsumer, err := broker.NewConsumerWithOptions(cfg.KafkaBrokers, cfg.FanoutGroup, cfg.FanoutTopic, consumerOpts)
 	if err != nil {
 		return err
 	}
@@ -147,7 +158,7 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 		}
 	}()
 
-	deliverConsumer, err := broker.NewConsumer(cfg.KafkaBrokers, cfg.DeliverGroup, cfg.DeliverTopic)
+	deliverConsumer, err := broker.NewConsumerWithOptions(cfg.KafkaBrokers, cfg.DeliverGroup, cfg.DeliverTopic, consumerOpts)
 	if err != nil {
 		return err
 	}
@@ -184,7 +195,10 @@ func run(cfg config.WorkerConfig, logger *slog.Logger) error {
 		// PostgreSQL, so a duplicate or lost hint changes latency, not results.
 		if err := deliverConsumer.Run(ctx, func(ctx context.Context, msg broker.Message) error {
 			if _, err := broker.DecodeDeliver(msg.Value); err != nil {
-				logger.Warn("discard malformed deliver event", "error", err)
+				// A malformed hint can never be used: dead-letter it instead of
+				// dropping it silently.
+				logger.Error("malformed deliver event", "error", err)
+				return broker.Permanent(err)
 			}
 			pool.Notify()
 			return nil

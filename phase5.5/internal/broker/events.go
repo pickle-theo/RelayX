@@ -10,6 +10,9 @@ import (
 const (
 	TopicFanout  = "relayx.fanout.v1"
 	TopicDeliver = "relayx.deliver.v1"
+	// TopicDLQ receives the records that can never be processed, so a poison
+	// record cannot block its partition forever.
+	TopicDLQ = "relayx.dlq.v1"
 
 	EventVersion = 1
 )
@@ -91,6 +94,56 @@ func DecodeDeliver(body []byte) (DeliverEvent, error) {
 	}
 	if ev.Version != EventVersion {
 		return DeliverEvent{}, fmt.Errorf("broker: unsupported deliver event version %d", ev.Version)
+	}
+	return ev, nil
+}
+
+// DeadLetterEvent describes one record that could never be processed. It is
+// published to the dead-letter topic and kept in PostgreSQL so an operator can
+// inspect and replay it.
+type DeadLetterEvent struct {
+	Version     int       `json:"version"`
+	SourceTopic string    `json:"source_topic"`
+	Partition   int       `json:"partition"`
+	Offset      int64     `json:"offset"`
+	Key         []byte    `json:"key,omitempty"`
+	Payload     []byte    `json:"payload"`
+	Error       string    `json:"error"`
+	ErrorKind   string    `json:"error_kind"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// DeadLetter is the in-process view of a dead-lettered record.
+type DeadLetter struct {
+	SourceTopic string
+	Partition   int
+	Offset      int64
+	Key         []byte
+	Payload     []byte
+	Error       string
+	ErrorKind   string
+	Attempts    int
+	CreatedAt   time.Time
+}
+
+// EncodeDeadLetter marshals a dead-letter event.
+func EncodeDeadLetter(ev DeadLetterEvent) ([]byte, error) {
+	ev.Version = EventVersion
+	body, err := json.Marshal(ev)
+	if err != nil {
+		return nil, fmt.Errorf("broker: encode dead-letter event: %w", err)
+	}
+	return body, nil
+}
+
+// DecodeDeadLetter unmarshals and validates a dead-letter event.
+func DecodeDeadLetter(body []byte) (DeadLetterEvent, error) {
+	var ev DeadLetterEvent
+	if err := json.Unmarshal(body, &ev); err != nil {
+		return DeadLetterEvent{}, fmt.Errorf("broker: decode dead-letter event: %w", err)
+	}
+	if ev.Version != EventVersion {
+		return DeadLetterEvent{}, fmt.Errorf("broker: unsupported dead-letter event version %d", ev.Version)
 	}
 	return ev, nil
 }
