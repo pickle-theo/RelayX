@@ -1,0 +1,54 @@
+---
+alwaysApply: true
+description: Gateway Platform 是纯设计文档仓库；维护语义契约的跨文档一致性、识别合法版本命名、正确区分现行基线与归档历史。所有请求均适用。
+---
+
+# Gateway Platform 文档一致性规则
+
+本仓库**只有设计文档，没有源代码**，全部内容在 `docs/`。不要假设存在可编译的 Go module，也不要为“编译失败”寻找源码。完整的仓库导览见 [CODEBUDDY.md](mdc:CODEBUDDY.md)。
+
+## 单一事实来源
+
+[架构设计方案](mdc:docs/通用实时消息 Gateway Platform - 架构设计方案.md) 第四部分「语义契约」是全项目契约的**唯一权威**，S2 验收后冻结。S0–S8 九份 LLD 开头的「冻结清单」是它的镜像。
+
+修改任何契约项（身份模型、幂等键、消息/投递状态枚举、事实 `event_id`、时间仲裁、广播/事件语义）时，必须**同时更新架构方案 + 所有引用该项的 LLD 冻结清单**，否则视为破坏一致性。
+
+关键点（以原文为准，勿凭记忆改写）：
+- 消息级与投递级是**两个独立状态机**，不可合并成一张图；`SETTLED` 只属于消息级，投递级没有 `SETTLED`，全系统无 `COMPLETED`。
+- `source_device_id` 由服务端从连接上下文派生并落库，客户端不可指定；仅客户端 `SEND` 有来源端点。
+- 到期/超时判定在 SQL `now()` 内完成，接口不得传入 `now` 参数。
+- 广播字节所有权用引用计数管理，不是简单共享后即归还。
+
+## 合法版本命名（不要误删）
+
+以下 `v1`/`v2` 是技术命名，不是版本对比措辞，禁止当作“旧版本痕迹”清除：
+- API 路径：`/v1/messages`、`/v1/client/messages`
+- Topic 版本：`relayx.command.v1`、`relayx.broadcast.v1`、`relayx.delivery-facts.v1`、`relayx.dlq.v1`
+- 客户端版本：`cmd/im v1`、`cmd/live v1`、`cmd/loadgen v1`、`cmd/scenario v1`
+- 契约版本：`Semantic Contract v1`、`semantic-contract-v1.md`
+- Mermaid 语法：`stateDiagram-v2`、`sequenceDiagram`
+
+真正的对比措辞（应清除）形如「相对旧版」「差异总表」「架构重设计方案」等。
+
+## 阶段与边界
+
+阶段顺序 S0→S8 由依赖决定，三条硬约束不可破坏：语义冻结线 S2 早于分布式 S6/S7；统一发送路径 S1 早于 S2/S3/S4；生产门禁 S8 晚于全部功能阶段。S5 是唯一性能窗口，只改实现效率、不动语义。
+
+新增「寻址 × 语义」组合不得新造发送逻辑，只能接入 S1 定型的四通道（P0 CONTROL / P1 RELIABLE / P2 BROADCAST / P3 EVENT）。横切关注点随接口首次出现落地，不留“先裸奔后补”的窗口。
+
+## 现行基线 vs 归档历史
+
+- 现行基线：`docs/` 根目录下 1 份架构方案 + 9 份 S0–S8 LLD。
+- 归档历史：`docs/归档/` 下三轮对抗性审查报告（v1/v2/v3），是只读过程记录，结论为“无 P0，可作为实现基线”。**不要**把归档报告中的待办当作现行设计，也不要从归档文件引用契约。
+- `.workbuddy/` 是项目数据目录，禁止删除。
+
+## 检查命令
+
+改文档后做一致性校验（PowerShell，工作目录为仓库根）：
+
+```powershell
+Get-ChildItem -LiteralPath .\docs -Recurse -Filter *.md |
+  Select-String -Pattern '架构重设计方案|Architecture Redesign|差异总表|相对 v1'
+Get-ChildItem -LiteralPath .\docs -Filter 'S*.md' |
+  Select-String -Pattern 'CAP_(TOPIC_SUBSCRIBE|RELIABLE_POLICY|CLIENT_EVENTS|CLOSE_REASON)\s*=\s*0x[0-9A-F]+'
+```
