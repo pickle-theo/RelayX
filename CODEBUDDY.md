@@ -2,13 +2,14 @@
 
 ## 仓库性质（先读这一条）
 
-本仓库**目前只有设计文档，没有源代码，也没有 Go module / build 配置**。所有内容位于 `docs/`：
+本仓库是**设计文档 + 分阶段落地代码**的混合体：
 
 - `docs/通用实时消息 Gateway Platform - 架构设计方案.md`：架构主文档（下称「架构方案」），是全部语义契约的**单一事实来源**。
 - `docs/S0 … S8 ... - 详细设计 LLD.md`：九个阶段的实现级详细设计。
 - `docs/归档/`：三轮对抗性审查报告（v1/v2/v3），是历史过程记录，结论为 v3「无 P0，文档可作为实现基线，不阻塞 S0–S2 开工」。
+- `s0/`：S0 传输层与协议的 Go 实现（独立 module `relayx/s0`），已通过 gofmt / vet / test / -race / bench 全量门禁与端到端验证。
 
-因此**不要假设存在可编译的代码**；不要为「编译失败」寻找不存在的源码。修改文档后，主要工作是维护**跨文档一致性**，而不是跑构建。
+S0 已落地；**S1–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S1+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
 
 ## 命令
 
@@ -29,19 +30,36 @@ Get-ChildItem -LiteralPath .\docs -Filter 'S*.md' |
   Select-String -Pattern 'CAP_(TOPIC_SUBSCRIBE|RELIABLE_POLICY|CLIENT_EVENTS|CLOSE_REASON)\s*=\s*0x[0-9A-F]+'
 ```
 
-### 文档规定、供未来实现阶段使用的命令
+### S0 已落地代码：可运行门禁
 
-以下命令**来自各 LLD 的「验收标准」章节**，描述 S0–S8 代码落地后每个模块/阶段必须通过的门禁；当前仓库无代码可运行它们：
+S0 是独立 Go module，工作目录为 `s0/`（Go 1.27+）。改动 `s0/` 后必须重跑：
+
+```powershell
+cd .\s0
+gofmt -w .                        # 格式化（S0–S8 每阶段通用）
+go vet ./...                      # 静态检查（每阶段通用）
+go test ./...                     # 单元/集成测试（每阶段通用）
+go test -race ./...               # 并发代码强制竞态检查（S1–S8 强制项）
+go test -bench=Benchmark -benchmem ./benchmark/...   # 基准骨架（见 S0 §9、S5 §3）
+```
+
+> 基准命令用 `-bench=Benchmark` 而非 `-bench=.`：本环境 PowerShell 会把 `-bench=.` 的 `=` 后的 `.` 当成包参数导致 `[setup failed]`。bash 脚本 `s0/benchmark/harness.sh` 内仍用标准 `-bench=.` 写法。
+
+端到端验证：先 `go run ./cmd/server -addr 127.0.0.1:9700 -enable-echo`，另开终端用 `go run ./cmd/echo-client -mode <roundtrip|fragmented|coalesced|truncated|oversized>` 连接。基线结果在 `s0/benchmark/result-s0-baseline.txt`。
+
+### S1–S8 规划门禁（当前无代码）
+
+以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前只有 S0 有代码可运行：
 
 ```bash
-gofmt -w .                 # 格式化（S0–S8 每阶段通用）
+gofmt -w .                 # 格式化（每阶段通用）
 go vet ./...               # 静态检查（每阶段通用）
 go test ./...              # 单元/集成测试（每阶段通用）
 go test -race ./...        # 并发代码强制竞态检查（S1–S8 强制项）
-go test -bench=. -benchmem ./...   # 基准骨架，S0 建立、S5 用于优化前后对比（见 S0 §9、S5 §3）
+go test -bench=. -benchmem ./...   # 基准骨架，S5 用于优化前后对比（见 S5 §3）
 ```
 
-`cmd/echo-client`（S0）、`cmd/im` 与 `cmd/live`（S1/S3/S4）、`cmd/scenario`（S4 起）、`cmd/loadgen`（S5 起）都是文档中规划的验证客户端，尚未实现。
+`cmd/echo-client`（S0）已实现。`cmd/im` 与 `cmd/live`（S1/S3/S4）、`cmd/scenario`（S4 起）、`cmd/loadgen`（S5 起）仍是规划的验证客户端，尚未实现。
 
 ## 架构大图景
 
@@ -93,11 +111,11 @@ S0 传输层与协议 → S1 单机 Gateway 核心 → S2 单机可靠消息内�
 
 顺序由依赖方向决定，三条硬约束：语义冻结线 S2 必须早于 S6/S7；统一发送路径 S1 必须早于 S2/S3/S4；S8 必须晚于全部功能阶段。S5 是单机功能冻结后唯一的性能窗口，只改实现效率、不动语义——若某项优化需要改语义，正确动作是停止并重开冻结线。
 
-每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`…`s8/` 出现在阶段表的「目录」列是规划命名，尚不存在。
+每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/` 已作为独立 Go module 落地；`s1/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
 
 ### 端到端验证体系
 
-三层客户端：L0 协议栈（帧编解码，S0）→ L1 SDK（状态机/重连/去重/hooks/查询补齐，S1 雏形、S4 正式）→ L2 验证客户端（IM、弹幕、场景运行器、负载生成器）。硬约束：L2 不得绕过 L1 直接拼帧，仅 `cmd/scenario` 的协议一致性用例可用 L0 构造非法帧。验收判据是「客户端跑通场景且断言通过」，不是服务端日志看起来正确。IM 的「已结算」必须来自服务端事实，不得由客户端依据 RECEIPT_ACK 自行推导。
+三层客户端：L0 协议栈（帧编解码，S0，已落地于 `s0/internal/protocol` 与 `s0/cmd/echo-client`）→ L1 SDK（状态机/重连/去重/hooks/查询补齐，S1 雏形、S4 正式）→ L2 验证客户端（IM、弹幕、场景运行器、负载生成器）。硬约束：L2 不得绕过 L1 直接拼帧，仅 `cmd/scenario` 的协议一致性用例可用 L0 构造非法帧。验收判据是「客户端跑通场景且断言通过」，不是服务端日志看起来正确。IM 的「已结算」必须来自服务端事实，不得由客户端依据 RECEIPT_ACK 自行推导。
 
 ## 处理文档时的注意事项
 
