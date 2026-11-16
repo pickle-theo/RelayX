@@ -9,8 +9,9 @@
 - `docs/归档/`：三轮对抗性审查报告（v1/v2/v3），是历史过程记录，结论为 v3「无 P0，文档可作为实现基线，不阻塞 S0–S2 开工」。
 - `s0/`：S0 传输层与协议的 Go 实现（独立 module `relayx/s0`），已通过 gofmt / vet / test / -race / bench 全量门禁与端到端验证。
 - `s1/`：S1 单机 Gateway 核心的 Go 实现（独立 module `relayx/s1`），含四通道统一发送路径、鉴权前移、单播/多设备路由、`/metrics`+`/healthz`、`cmd/gateway` 与 `cmd/im`；已通过 gofmt / vet / test / -race 与三个验收场景端到端验证。
+- `s2/`：S2 可靠消息内核的 Go 实现（独立 module `relayx/s2`），含统一受理入口、PostgreSQL/内存双 store、两个状态机与 CAS、确定性事实、只读查询 API、`cmd/gateway` / `cmd/scenario` v0 / `cmd/maintenance`；语义契约已冻结于 `docs/contracts/semantic-contract-v1.md`。已通过 gofmt / vet / test / -race、九个验收场景与真实 PostgreSQL 契约测试。
 
-S0、S1 已落地；**S2–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S2+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/` 或 `s1/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
+S0、S1、S2 已落地；**S3–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S3+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/`、`s1/` 或 `s2/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
 
 ## 命令
 
@@ -33,14 +34,22 @@ Get-ChildItem -LiteralPath .\docs -Filter 'S*.md' |
 
 ### 已落地代码：可运行门禁
 
-S0 / S1 各是独立 Go module（Go 1.27+），工作目录分别为 `s0/`、`s1/`。改动对应目录后必须在该目录重跑：
+S0 / S1 / S2 各是独立 Go module（Go 1.27+），工作目录分别为 `s0/`、`s1/`、`s2/`。改动对应目录后必须在该目录重跑：
 
 ```powershell
-cd .\s0   # 或 cd .\s1
+cd .\s0   # 或 cd .\s1 / .\s2
 gofmt -w .                        # 格式化（S0–S8 每阶段通用）
 go vet ./...                      # 静态检查（每阶段通用）
 go test ./...                     # 单元/集成测试（每阶段通用）
 go test -race ./...               # 并发代码强制竞态检查（S1–S8 强制项）
+```
+
+S2 额外有可选真实数据库契约测试（默认跳过，设置环境变量后运行）：
+
+```powershell
+$env:S2_TEST_DSN='postgres://relayx:relayx@127.0.0.1:55432/relayx_phase6?sslmode=disable'
+go test ./internal/store/postgres
+Remove-Item Env:S2_TEST_DSN
 ```
 
 S0 额外有基准骨架：`go test -bench=Benchmark -benchmem ./benchmark/...`（见 S0 §9、S5 §3）。
@@ -50,10 +59,11 @@ S0 额外有基准骨架：`go test -bench=Benchmark -benchmem ./benchmark/...`�
 端到端验证：
 - S0：`go run ./cmd/server -addr 127.0.0.1:9700 -enable-echo` + `go run ./cmd/echo-client -mode <roundtrip|fragmented|coalesced|truncated|oversized>`。基线结果在 `s0/benchmark/result-s0-baseline.txt`。
 - S1：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801` + `go run ./cmd/im -scenario <login-and-chat|multi-device|presence-simple>`；`/metrics` 与 `/healthz` 在 metrics 端口。
+- S2：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802`（默认内存 store；生产用 `-store postgres -dsn ...`）+ `go run ./cmd/scenario -gateway 127.0.0.1:9800 -access 127.0.0.1:9802 -scenario <reliable-online-delivery|multi-device-fanout|offline-recovery|zero-endpoint-settles|business-ack-passthrough|ttl-expiry|retry-exhaustion|clock-skew-immunity|duplicate-settle-cas>`。需要时钟推进的场景必须给网关加 `-test-hooks`（仅本机内存模式提供 `/debug/clock`）。`/metrics` 与 `/healthz` 在 metrics 端口，`/v1/messages*` 在 access 端口。
 
-### S2–S8 规划门禁（当前无代码）
+### S3–S8 规划门禁（当前无代码）
 
-以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前只有 S0、S1 有代码可运行：
+以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前只有 S0、S1、S2 有代码可运行：
 
 ```bash
 gofmt -w .                 # 格式化（每阶段通用）
@@ -63,7 +73,7 @@ go test -race ./...        # 并发代码强制竞态检查（S1–S8 强制项�
 go test -bench=. -benchmem ./...   # 基准骨架，S5 用于优化前后对比（见 S5 §3）
 ```
 
-`cmd/echo-client`（S0）、`cmd/gateway` 与 `cmd/im`（S1）已实现。`cmd/live`（S3/S4）、`cmd/scenario`（S4 起）、`cmd/loadgen`（S5 起）仍是规划的验证客户端，尚未实现。
+`cmd/echo-client`（S0）、`cmd/gateway` 与 `cmd/im`（S1）、`cmd/gateway`、`cmd/scenario` v0 与 `cmd/maintenance`（S2）已实现。`cmd/live`（S3/S4）、`cmd/scenario` v1（S4 扩展）、`cmd/loadgen`（S5 起）仍是规划的验证客户端，尚未实现。
 
 ## 架构大图景
 
@@ -77,7 +87,7 @@ go test -bench=. -benchmem ./...   # 基准骨架，S5 用于优化前后对比�
 
 ### 语义契约（单一事实来源，冻结于 S2）
 
-这是全项目最关键的资产，S2 验收通过后冻结，S3–S8 只允许引用、不得重新定义。要点（架构方案 §4.1，以原文为准）：
+这是全项目最关键的资产，S2 已验收并冻结于 `docs/contracts/semantic-contract-v1.md`（架构方案 §4.1 的独立快照）。S3–S8 只允许引用、不得重新定义。要点（架构方案 §4.1，以原文为准）：
 
 - **身份**：`tenant_id + producer_id`（用户令牌与服务令牌分流）+ 可选 `sender`。**来源端点** `source_endpoint = (producer_id, source_device_id)`，其中 `source_device_id` 由服务端从连接上下文派生并落库，客户端不可指定；仅客户端 `SEND` 有来源端点，服务令牌 / HTTP 提交写空串且不路由其事件。
 - **幂等键**：接入 `(tenant_id, producer_id, client_msg_id)`；投递 `(tenant_id, message_id, user_id, device_id)`。
@@ -115,11 +125,11 @@ S0 传输层与协议 → S1 单机 Gateway 核心 → S2 单机可靠消息内�
 
 顺序由依赖方向决定，三条硬约束：语义冻结线 S2 必须早于 S6/S7；统一发送路径 S1 必须早于 S2/S3/S4；S8 必须晚于全部功能阶段。S5 是单机功能冻结后唯一的性能窗口，只改实现效率、不动语义——若某项优化需要改语义，正确动作是停止并重开冻结线。
 
-每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`、`s1/` 已作为独立 Go module 落地（S1 的 `internal/protocol` 是 S0 冻结协议的快照复用，非阶段代码复制）；`s2/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
+每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`、`s1/`、`s2/` 已作为独立 Go module 落地（S1/S2 的 `internal/protocol` 是 S0 冻结协议的快照复用，非阶段代码复制；S2 通过新增 body 布局与继承包实现阶段增量）；`s3/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
 
 ### 端到端验证体系
 
-三层客户端：L0 协议栈（帧编解码，S0，已落地于 `s0/internal/protocol` 与 `s0/cmd/echo-client`）→ L1 SDK（状态机/重连/去重/hooks/查询补齐，S1 有 `s1/cmd/im` 雏形、S4 正式）→ L2 验证客户端（IM、弹幕、场景运行器、负载生成器）。硬约束：L2 不得绕过 L1 直接拼帧，仅 `cmd/scenario` 的协议一致性用例可用 L0 构造非法帧。验收判据是「客户端跑通场景且断言通过」，不是服务端日志看起来正确。IM 的「已结算」必须来自服务端事实，不得由客户端依据 RECEIPT_ACK 自行推导。
+三层客户端：L0 协议栈（帧编解码，S0，已落地于 `s0/internal/protocol` 与 `s0/cmd/echo-client`）→ L1 SDK（状态机/重连/去重/hooks/查询补齐，S1 有 `s1/cmd/im` 雏形、S4 正式）→ L2 验证客户端（IM、弹幕、场景运行器、负载生成器；S2 已交付 `s2/cmd/scenario` v0，仅 IM/可靠消息用例）。硬约束：L2 不得绕过 L1 直接拼帧，仅 `cmd/scenario` 的协议一致性用例可用 L0 构造非法帧。验收判据是「客户端跑通场景且断言通过」，不是服务端日志看起来正确。IM 的「已结算」必须来自服务端事实，不得由客户端依据 RECEIPT_ACK 自行推导。
 
 ## 处理文档时的注意事项
 
