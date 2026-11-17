@@ -789,12 +789,16 @@ sequenceDiagram
 | 指标 | 类型 | 用途 |
 |---|---|---|
 | `client_event_produced` | Counter | 事件生产数（按 type） |
-| `client_event_dropped` | Counter | 丢弃数（按原因：队列满/离线/stale） |
+| `client_event_dropped` | Counter | 丢弃数（按原因，标签集见下） |
 | `client_event_queue_depth` | Gauge | 事件队列深度 |
 | `client_event_route_failed` | Counter | 路由失败数（含 `no_route`：`source_device_id` 为空或设备无会话） |
 | `client_query_latency` | Histogram | 查询 API 延迟 |
 | `reconnect_reason` | Counter | 重连原因分布（按 reason code） |
 
+- `client_event_dropped` 的标签集是冻结的五个值：`queue_full` / `offline` / `stale` / `not_subscribed` / `injected`。
+  其中 **`stale` 由端侧去重判定**（§9.2 的 `state_version` 比较），服务端不产生该原因的丢弃，
+  该序列恒 0 但必须输出——标签集随服务端行为收缩会让既有仪表盘与告警静默失效。
+  `injected` 仅 `-test-hooks` 的 gap 注入用例产生。细则见 `s4/docs/client-events.md`。
 - 日志：事件丢弃必须记录原因，便于端侧问题定位。
 - traceID：客户端日志携带与服务端一致的 traceID，可跨端串联。
 

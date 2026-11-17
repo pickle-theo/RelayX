@@ -130,4 +130,6 @@ client_query_latency_seconds_{bucket,sum,count}
 reconnect_reason_total{reason}
 ```
 
-`stale` 由端侧去重判定，服务端不产生；`injected` 仅 `-test-hooks` 的 gap 注入使用。
+`stale` 由端侧去重判定（`state_version` 回退），服务端不产生该原因的丢弃，
+因此 `reason="stale"` 恒 0、但仍在标签集内输出——标签集是冻结契约，不能因为当前恒 0 就删掉序列。
+`injected` 仅 `-test-hooks` 的 gap 注入使用。
