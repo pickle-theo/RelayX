@@ -207,7 +207,9 @@ type DeliveryStore interface {
 	MarkSent(ctx context.Context, tx Tx, id string, attempts int32, backoffSeconds int32) (int, bool, error)
 	Transition(ctx context.Context, tx Tx, id string, from []string, to string, patch DeliveryPatch, version int) (bool, error)
 	ExpireIfEligible(ctx context.Context, tx Tx, id string) (int, bool, error)
-	SetApplicationAck(ctx context.Context, tx Tx, id string, status string, at time.Time) error
+	// SetApplicationAck 只写业务透传列；application_acked_at 由 store 自身时钟派生，
+	// 调用方不得传入时间（语义契约 §6：接口签名不接收 now）。
+	SetApplicationAck(ctx context.Context, tx Tx, id string, status string) error
 }
 
 // FactStore 持久化传输事实，并以确定性 event_id 保证幂等。

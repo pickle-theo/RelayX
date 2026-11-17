@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -198,10 +197,10 @@ func (v *deliveryView) ExpireIfEligible(ctx context.Context, _ store.Tx, id stri
 	return version, true, nil
 }
 
-func (v *deliveryView) SetApplicationAck(ctx context.Context, _ store.Tx, id string, status string, at time.Time) error {
+func (v *deliveryView) SetApplicationAck(ctx context.Context, _ store.Tx, id string, status string) error {
 	_, err := v.q().Exec(ctx, `
 		UPDATE deliveries
-		SET application_status=$2, application_acked_at=$3
-		WHERE id=$1`, id, status, at)
+		SET application_status=$2, application_acked_at=now()
+		WHERE id=$1`, id, status)
 	return err
 }

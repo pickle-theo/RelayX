@@ -127,8 +127,34 @@ func (g *Gateway) Lookup(tenant, user, device string) (engine.Sink, bool) {
 	if !ok || c.State() != connection.StateOpen {
 		return nil, false
 	}
-	return c.Send, true
+	return connSink{c: c, timeout: g.cfg.EnqueueTimeout}, true
 }
+
+// connSink 把 engine.Sink 适配到具体连接：由连接分配连接内出站序号并编码，
+// 并给 P1 背压加时间上限——引擎的重试扫描是单 goroutine，若在这里无限期等待
+// 一个慢消费者，所有端点的重试都会被拖住。
+type connSink struct {
+	c       *connection.Connection
+	timeout time.Duration
+}
+
+func (s connSink) EnqueueReliable(ctx context.Context, f protocol.Frame) error {
+	if s.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, s.timeout)
+		defer cancel()
+	}
+	if err := s.c.EnqueueReliable(ctx, f); err != nil {
+		if errors.Is(err, sendpath.ErrQueueFull) {
+			// 背压等待超时 = 慢消费者，按 S1 契约断连（LLD §8.2）。
+			s.c.Close()
+		}
+		return err
+	}
+	return nil
+}
+
+var _ engine.Sink = connSink{}
 
 func (g *Gateway) OnOpen(_ *connection.Connection) {}
 

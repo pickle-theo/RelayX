@@ -24,15 +24,11 @@ func (e *Engine) dispatchOne(ctx context.Context, m *store.Message, d *store.Del
 		Payload:    m.Payload,
 		ExpiresAt:  m.ExpiresAt.UnixMilli(),
 	})
-	frame, err := protocol.Encode(protocol.Frame{Type: protocol.TypeDeliver, Body: body}, nil)
-	if err != nil {
-		return err
-	}
-	if err := sink.EnqueueReliable(ctx, frame); err != nil {
+	if err := sink.EnqueueReliable(ctx, protocol.Frame{Type: protocol.TypeDeliver, Body: body}); err != nil {
 		return err
 	}
 	var version int
-	err = e.st.WithinTx(ctx, func(tx store.Tx) error {
+	err := e.st.WithinTx(ctx, func(tx store.Tx) error {
 		v, ok, err := tx.Deliveries().MarkSent(ctx, tx, d.ID, attempts, e.backoffSeconds())
 		version = v
 		if err != nil || !ok {

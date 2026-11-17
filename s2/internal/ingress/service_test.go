@@ -15,13 +15,15 @@ import (
 
 type sink struct {
 	mu     sync.Mutex
-	frames [][]byte
+	frames []protocol.Frame
 }
 
-func (s *sink) EnqueueReliable(_ context.Context, b []byte) error {
+func (s *sink) EnqueueReliable(_ context.Context, f protocol.Frame) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.frames = append(s.frames, append([]byte(nil), b...))
+	c := f
+	c.Body = append([]byte(nil), f.Body...)
+	s.frames = append(s.frames, c)
 	return nil
 }
 
@@ -116,7 +118,7 @@ func TestOnlineDeliveryReceiptAndBusinessAck(t *testing.T) {
 	if sk.count() != 1 {
 		t.Fatalf("deliver frames=%d", sk.count())
 	}
-	f, _, _ := protocol.Decode(sk.recorded()[0])
+	f := sk.recorded()[0]
 	if f.Type != protocol.TypeDeliver {
 		t.Fatalf("frame type=0x%02x", f.Type)
 	}
@@ -189,7 +191,7 @@ func TestPolicyAndPayloadLimits(t *testing.T) {
 	}
 }
 
-func (s *sink) recorded() [][]byte {
+func (s *sink) recorded() []protocol.Frame {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.frames

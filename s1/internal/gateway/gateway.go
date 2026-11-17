@@ -3,6 +3,8 @@
 package gateway
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -114,9 +116,24 @@ func (g *Gateway) itinerary(s *session.Session) (route.Destination, bool) {
 			if err != nil {
 				return err
 			}
-			return conn.EnqueueReliable(conn.Context(), protocol.Frame{
+			ctx := conn.Context()
+			if g.cfg.EnqueueTimeout > 0 {
+				// P1 背压必须有上限：用连接生命周期 context 会让慢消费者的发送
+				// 方读循环无限期阻塞（跨连接队头阻塞），并把心跳一起拖死。
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, g.cfg.EnqueueTimeout)
+				defer cancel()
+			}
+			if err := conn.EnqueueReliable(ctx, protocol.Frame{
 				Type: protocol.TypeDeliver, Body: body,
-			})
+			}); err != nil {
+				if errors.Is(err, sendpath.ErrQueueFull) {
+					// 背压等待超时 = 慢消费者，按 S1 契约断连（LLD §8.2）。
+					conn.Close()
+				}
+				return err
+			}
+			return nil
 		},
 	}, true
 }
@@ -187,7 +204,15 @@ func (g *Gateway) handleLogin(c *connection.Connection, f protocol.Frame) {
 	if old != nil && old.Session != s && old.Session.State() == session.Active {
 		g.metrics.ReplacedInc()
 		old.Session.MarkReplaced()
-		g.closeReplaced(old.Session)
+		if oldConn, ok := g.sessionConn(old.Session.ID); ok && oldConn == c {
+			// 同一连接重复登录：关闭自身会打掉刚建立的新会话，且旧会话映射
+			// 永远无人清理。只摘掉旧会话映射即可。
+			g.mu.Lock()
+			delete(g.sessions, old.Session.ID)
+			g.mu.Unlock()
+		} else {
+			g.closeReplaced(old.Session)
+		}
 	}
 	s.Activate()
 	g.metrics.LoginInc()
@@ -203,12 +228,17 @@ func (g *Gateway) handleLogin(c *connection.Connection, f protocol.Frame) {
 	})
 }
 
+// sessionConn 返回会话当前绑定的连接。
+func (g *Gateway) sessionConn(sessID string) (*connection.Connection, bool) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	conn, ok := g.sessions[sessID]
+	return conn, ok
+}
+
 // closeReplaced 给被替换的旧会话发 CLOSE（body 空），然后关闭其连接。
 func (g *Gateway) closeReplaced(old *session.Session) {
-	g.mu.RLock()
-	conn, ok := g.sessions[old.ID]
-	g.mu.RUnlock()
-	if ok {
+	if conn, ok := g.sessionConn(old.ID); ok {
 		conn.ReplyClose()
 		conn.Close()
 		// 不立即清理索引：旧连接的 OnClose 会注销其 byConn/sessions 映射。
@@ -226,6 +256,13 @@ func (g *Gateway) handleSend(c *connection.Connection, f protocol.Frame) {
 	sender := g.byConn[c.ID]
 	g.mu.RUnlock()
 	if sender == nil {
+		c.ReplyError(protocol.ErrorUnknownFrame)
+		return
+	}
+	// 租户由登录令牌决定：SEND body 里的 tenant 只是寻址字段，必须与已认证租户一致。
+	// 否则任何合法用户都能指定别的 tenant_id 完成跨租户投递（数据注入）。
+	if sb.TenantID != sender.Endpoint.TenantID {
+		g.metrics.RouteMissInc()
 		c.ReplyError(protocol.ErrorUnknownFrame)
 		return
 	}

@@ -632,7 +632,7 @@ func (v *deliveryView) ExpireIfEligible(_ context.Context, _ store.Tx, id string
 	return d.StateVersion, true, nil
 }
 
-func (v *deliveryView) SetApplicationAck(_ context.Context, _ store.Tx, id string, status string, at time.Time) error {
+func (v *deliveryView) SetApplicationAck(_ context.Context, _ store.Tx, id string, status string) error {
 	v.lock()
 	defer v.unlock()
 	d, ok := v.s.deliveries[id]
@@ -640,7 +640,7 @@ func (v *deliveryView) SetApplicationAck(_ context.Context, _ store.Tx, id strin
 		return store.ErrNotFound
 	}
 	s := status
-	t := at.UTC()
+	t := v.s.now()
 	d.ApplicationStatus = &s
 	d.ApplicationAckedAt = &t
 	return nil

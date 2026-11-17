@@ -110,7 +110,12 @@ func (c *Connection) Serve() {
 	c.metrics.ConnInc()
 	c.wg.Add(3)
 	go c.readLoop()
-	go c.writer.Run()
+	go func() {
+		// Writer 必须计入 WaitGroup：否则 Serve 永远等不到归零，
+		// OnClose（会话注销 / SendPath 注销 / 连接数回收）永不执行。
+		defer c.wg.Done()
+		c.writer.Run()
+	}()
 	go c.heartbeatLoop()
 	c.wg.Wait()
 	// 不能复用 c.once：Close() 已占用它，复用会导致 state 永远停在 StateClosing。

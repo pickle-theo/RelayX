@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 
 	"relayx/s2/internal/store"
 )
@@ -14,7 +15,11 @@ func (e *Engine) HandleReceiptAck(ctx context.Context, tenant, messageID, user, 
 		// 出现读-改-写竞态：旧版本会让 CAS 静默失败，ACK 永久丢失。
 		d, err := tx.Deliveries().GetByKey(ctx, tenant, messageID, user, device)
 		if err != nil {
-			return store.ErrUnknownMessage
+			// 只把「确实不存在」映射为 UnknownMessage；DB 故障/超时原样上抛。
+			if errors.Is(err, store.ErrNotFound) {
+				return store.ErrUnknownMessage
+			}
+			return err
 		}
 		hit, err := tx.Deliveries().Transition(ctx, tx, d.ID,
 			[]string{store.DeliverySent}, store.DeliveryReceiptAcked,

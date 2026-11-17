@@ -8,14 +8,16 @@ import (
 	"log"
 
 	"relayx/s2/internal/config"
+	"relayx/s2/internal/protocol"
 	"relayx/s2/internal/store"
 )
 
 // Sink 是单条活跃连接的 P1 可靠通道入口。
-// 接收已编码的帧字节，使唯一 Writer 仍然是
-// 唯一接触 socket 的地方。
+// 传入未编码帧：连接内序号分配与帧编码由连接层完成（唯一 Writer 仍然是
+// 唯一接触 socket 的地方）。若在引擎侧预编码，出站 Sequence 将无人分配，
+// 违反 S0 冻结的连接内单调序号语义。
 type Sink interface {
-	EnqueueReliable(ctx context.Context, frame []byte) error
+	EnqueueReliable(ctx context.Context, f protocol.Frame) error
 }
 
 // OnlineResolver 把端点映射到其活跃 Sink。会话注册表是

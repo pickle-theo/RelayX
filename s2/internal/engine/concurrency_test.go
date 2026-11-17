@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"relayx/s2/internal/config"
+	"relayx/s2/internal/protocol"
 	"relayx/s2/internal/store"
 	"relayx/s2/internal/store/memory"
 )
 
 type testSink struct{}
 
-func (testSink) EnqueueReliable(context.Context, []byte) error { return nil }
+func (testSink) EnqueueReliable(context.Context, protocol.Frame) error { return nil }
 
 type testResolver struct{}
 

@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -38,15 +39,23 @@ func dial(addr string) (*client, error) {
 }
 
 func (c *client) readLoop() {
-	buf := make([]byte, 1<<16)
+	// 必须容纳协议上限的整帧：缓冲区小于 MaxFrameSize 时，最大帧永远拼不完整，
+	// 且 Read 在缓冲区填满后立即返回 0 字节，形成忙等。
+	buf := make([]byte, protocol.MaxFrameSize)
 	pending := buf[:0]
 	for {
+		if len(pending) == cap(buf) {
+			return // 缓冲已满仍无完整帧：帧长非法，放弃该连接
+		}
 		n, err := c.conn.Read(buf[len(pending):cap(buf)])
 		if n > 0 {
 			pending = pending[:len(pending)+n]
 			pos := 0
 			for pos < len(pending) {
 				f, used, derr := protocol.Decode(pending[pos:])
+				if errors.Is(derr, protocol.ErrIncomplete) {
+					break // 半包：保留残帧，等下一次 Read 补齐
+				}
 				if derr != nil {
 					return
 				}

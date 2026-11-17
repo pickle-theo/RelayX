@@ -200,6 +200,78 @@ func TestDuplicateLoginReplacesOld(t *testing.T) {
 	}
 }
 
+// TestSendRejectsCrossTenantTarget 覆盖跨租户注入：已认证生产者不得通过 SEND body
+// 指定其他租户的 tenant_id 完成投递；同租户投递必须照常工作。
+func TestSendRejectsCrossTenantTarget(t *testing.T) {
+	_, addr := startGateway(t)
+	alice := newGWClient(t, addr, "t1", "alice", "phone")
+	carol := newGWClient(t, addr, "t1", "carol", "phone")
+	bob := newGWClient(t, addr, "t2", "bob", "phone")
+	defer alice.nc.Close()
+	defer carol.nc.Close()
+	defer bob.nc.Close()
+	alice.login()
+	carol.login()
+	bob.login()
+
+	// 跨租户：目标 t2/bob，必须被拒绝且不产生 DELIVER。
+	alice.send(protocol.TypeSend, sendBody("t2", "bob", "phone", "injected"))
+	if f := alice.read(); f.Type != protocol.TypeError {
+		t.Fatalf("cross-tenant SEND: frame=0x%02X want ERROR", f.Type)
+	}
+	_ = bob.nc.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	if f, err := readFrame(bob.nc); err == nil && f.Type == protocol.TypeDeliver {
+		t.Fatalf("cross-tenant DELIVER leaked to t2: %q", f.Body)
+	}
+
+	// 同租户：正常投递仍然工作。
+	alice.send(protocol.TypeSend, sendBody("t1", "carol", "phone", "ok"))
+	f := carol.read()
+	if f.Type != protocol.TypeDeliver {
+		t.Fatalf("same-tenant SEND: frame=0x%02X want DELIVER", f.Type)
+	}
+	if d, err := protocol.DecodeDeliver(f.Body); err != nil || string(d.Payload) != "ok" {
+		t.Fatalf("deliver body=%+v err=%v", d, err)
+	}
+}
+
+// readFrame 读取一帧但不 fatal，用于断言「不应收到任何帧」。
+func readFrame(nc net.Conn) (protocol.Frame, error) {
+	header := make([]byte, protocol.HeaderSize)
+	if _, err := io.ReadFull(nc, header); err != nil {
+		return protocol.Frame{}, err
+	}
+	length := int(binary.BigEndian.Uint32(header[4:8]))
+	if length > protocol.MaxBodySize {
+		return protocol.Frame{}, errors.New("frame too large")
+	}
+	buf := make([]byte, protocol.HeaderSize+length)
+	copy(buf, header)
+	if _, err := io.ReadFull(nc, buf[protocol.HeaderSize:]); err != nil {
+		return protocol.Frame{}, err
+	}
+	f, _, err := protocol.Decode(buf)
+	return f, err
+}
+
+// TestConnectionCloseIsReclaimed 覆盖连接回收：Writer 退出后 Serve 必须结束，
+// 否则 OnClose 不执行（会话/索引残留）且 gateway_connections 永不下降。
+func TestConnectionCloseIsReclaimed(t *testing.T) {
+	gw, addr := startGateway(t)
+	c := newGWClient(t, addr, "t1", "alice", "phone")
+	c.login()
+	_ = c.nc.Close()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if gw.Metrics().Connections() == 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("connection not reclaimed after close: connections=%d", gw.Metrics().Connections())
+}
+
 func TestRouteMissAfterDisconnect(t *testing.T) {
 	_, addr := startGateway(t)
 	a := newGWClient(t, addr, "t1", "alice", "phone")

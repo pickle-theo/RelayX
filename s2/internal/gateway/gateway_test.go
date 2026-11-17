@@ -185,6 +185,11 @@ func TestLoginAndReliableDelivery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 出站序号由连接层分配（S0 冻结语义）。若引擎侧预编码，Sequence 会恒为 0，
+	// 收端会把它判定为「未分配序号」并污染 frame_gap/out_of_order 观测。
+	if f.Sequence == 0 {
+		t.Fatal("DELIVER sequence must be allocated by the connection send path")
+	}
 	d, err := protocol.DecodeDeliver(f.Body)
 	if err != nil || string(d.Payload) != "hello" || d.ProducerID != "u:alice" {
 		t.Fatalf("deliver=%+v err=%v", d, err)
