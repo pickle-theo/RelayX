@@ -1,0 +1,647 @@
+{
+  "commit": "a8cdcc3",
+  "timestamp": "2026-11-17T05:40:57.9872722Z",
+  "env": {
+    "goos": "windows",
+    "goarch": "amd64",
+    "go_version": "go1.27.3",
+    "num_cpu": 8,
+    "gomaxprocs": 8,
+    "gogc": "default(100)",
+    "host": "WIN-1DPKB4M7I5M"
+  },
+  "label": "after",
+  "benchmarks": [
+    {
+      "name": "BenchmarkAppendEncode-4",
+      "ns_per_op": 62.65,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkDecode-4",
+      "ns_per_op": 17.07,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkDecodeBatch-4",
+      "ns_per_op": 280.4,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "MB/s": 4450.58
+      }
+    },
+    {
+      "name": "BenchmarkDeriveEventID-4",
+      "ns_per_op": 708.7,
+      "bytes_per_op": 280,
+      "allocs_per_op": 13,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkEncode-4",
+      "ns_per_op": 177.1,
+      "bytes_per_op": 576,
+      "allocs_per_op": 1,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkEncodeBroadcast_Append-4",
+      "ns_per_op": 125,
+      "bytes_per_op": 72,
+      "allocs_per_op": 2,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkEncodeBroadcast_Baseline-4",
+      "ns_per_op": 258.4,
+      "bytes_per_op": 419,
+      "allocs_per_op": 6,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkEncodeIntoBuffer-4",
+      "ns_per_op": 29.32,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkFactsWrite-4",
+      "ns_per_op": 1466,
+      "bytes_per_op": 860,
+      "allocs_per_op": 15,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkFactsWrite_Duplicate-4",
+      "ns_per_op": 33.28,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkFanout_PerSubscriber/subs=1-4",
+      "ns_per_op": 374.8,
+      "bytes_per_op": 664,
+      "allocs_per_op": 5,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 374.8
+      }
+    },
+    {
+      "name": "BenchmarkFanout_PerSubscriber/subs=100-4",
+      "ns_per_op": 34432,
+      "bytes_per_op": 66400,
+      "allocs_per_op": 500,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 344.3
+      }
+    },
+    {
+      "name": "BenchmarkFanout_PerSubscriber/subs=1000-4",
+      "ns_per_op": 395172,
+      "bytes_per_op": 664002,
+      "allocs_per_op": 5000,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 395.2
+      }
+    },
+    {
+      "name": "BenchmarkFanout_PerSubscriber/subs=10000-4",
+      "ns_per_op": 3997300,
+      "bytes_per_op": 6640017,
+      "allocs_per_op": 50000,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 399.7
+      }
+    },
+    {
+      "name": "BenchmarkFanout_Shared/subs=1-4",
+      "ns_per_op": 194.9,
+      "bytes_per_op": 72,
+      "allocs_per_op": 2,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 194.9
+      }
+    },
+    {
+      "name": "BenchmarkFanout_Shared/subs=100-4",
+      "ns_per_op": 6551,
+      "bytes_per_op": 72,
+      "allocs_per_op": 2,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 65.51
+      }
+    },
+    {
+      "name": "BenchmarkFanout_Shared/subs=1000-4",
+      "ns_per_op": 64798,
+      "bytes_per_op": 72,
+      "allocs_per_op": 2,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 64.8
+      }
+    },
+    {
+      "name": "BenchmarkFanout_Shared/subs=10000-4",
+      "ns_per_op": 726556,
+      "bytes_per_op": 74,
+      "allocs_per_op": 2,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/sub": 72.66
+      }
+    },
+    {
+      "name": "BenchmarkIdleConn_Baseline-4",
+      "ns_per_op": 34312,
+      "bytes_per_op": 99624,
+      "allocs_per_op": 21,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkIdleConn_HeartbeatOps/ticker-per-conn-4",
+      "ns_per_op": 213.4,
+      "bytes_per_op": 248,
+      "allocs_per_op": 3,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkIdleConn_HeartbeatOps/wheel-after-cancel-4",
+      "ns_per_op": 102.6,
+      "bytes_per_op": 73,
+      "allocs_per_op": 1,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkIdleConn_Pooled-4",
+      "ns_per_op": 14750,
+      "bytes_per_op": 25731,
+      "allocs_per_op": 18,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkMakeBuffer-4",
+      "ns_per_op": 174,
+      "bytes_per_op": 640,
+      "allocs_per_op": 1,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkPoolGetPut-4",
+      "ns_per_op": 40.53,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      }
+    },
+    {
+      "name": "BenchmarkReadLoop_Baseline-4",
+      "ns_per_op": 2569,
+      "bytes_per_op": 0,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "MB/s": 1146.06,
+        "deadlines/frame": 1.016,
+        "ns/frame": 40.14,
+        "timecalls/frame": 1.016
+      }
+    },
+    {
+      "name": "BenchmarkReadLoop_Pooled-4",
+      "ns_per_op": 1761,
+      "bytes_per_op": 226,
+      "allocs_per_op": 2,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "MB/s": 1671.81,
+        "deadlines/frame": 0.01562,
+        "ns/frame": 27.52
+      }
+    },
+    {
+      "name": "BenchmarkSend-4",
+      "ns_per_op": 1402,
+      "bytes_per_op": 2,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "deadlines/frame*1e3": 31.34,
+        "ns/frame": 175.2,
+        "syscalls/frame": 0.06269,
+        "writes/frame*1e3": 31.34
+      }
+    },
+    {
+      "name": "BenchmarkSend_PerFrame-4",
+      "ns_per_op": 1683,
+      "bytes_per_op": 35,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "deadlines/frame*1e3": 1000,
+        "ns/frame": 210.3,
+        "syscalls/frame": 2,
+        "writes/frame*1e3": 1000
+      }
+    },
+    {
+      "name": "BenchmarkWriteBatch/batch=1-4",
+      "ns_per_op": 231,
+      "bytes_per_op": 3,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/frame": 231,
+        "syscalls/frame": 2
+      }
+    },
+    {
+      "name": "BenchmarkWriteBatch/batch=16-4",
+      "ns_per_op": 2906,
+      "bytes_per_op": 7,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/frame": 181.6,
+        "syscalls/frame": 0.1251
+      }
+    },
+    {
+      "name": "BenchmarkWriteBatch/batch=32-4",
+      "ns_per_op": 5756,
+      "bytes_per_op": 6,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/frame": 179.9,
+        "syscalls/frame": 0.06276
+      }
+    },
+    {
+      "name": "BenchmarkWriteBatch/batch=4-4",
+      "ns_per_op": 812.7,
+      "bytes_per_op": 8,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/frame": 203.2,
+        "syscalls/frame": 0.5
+      }
+    },
+    {
+      "name": "BenchmarkWriteBatch/batch=8-4",
+      "ns_per_op": 1576,
+      "bytes_per_op": 19,
+      "allocs_per_op": 0,
+      "commit": "a8cdcc3",
+      "timestamp": "2026-11-17T05:40:57.9872722Z",
+      "env": {
+        "goos": "windows",
+        "goarch": "amd64",
+        "go_version": "go1.27.3",
+        "num_cpu": 8,
+        "gomaxprocs": 8,
+        "gogc": "default(100)",
+        "host": "WIN-1DPKB4M7I5M"
+      },
+      "metrics": {
+        "ns/frame": 197,
+        "syscalls/frame": 0.25
+      }
+    }
+  ]
+}

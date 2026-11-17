@@ -1,0 +1,105 @@
+﻿goos: windows
+goarch: amd64
+pkg: relayx/s5/benchmark
+cpu: Intel(R) Core(TM) i3-10105 CPU @ 3.70GHz
+BenchmarkEncode-4                     	 2263412	       214.4 ns/op	     576 B/op	       1 allocs/op
+BenchmarkEncode-4                     	 1865876	       177.1 ns/op	     576 B/op	       1 allocs/op
+BenchmarkEncode-4                     	 2401128	       159.5 ns/op	     576 B/op	       1 allocs/op
+BenchmarkEncodeIntoBuffer-4           	12583407	        29.32 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEncodeIntoBuffer-4           	12934936	        32.06 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEncodeIntoBuffer-4           	12713344	        28.16 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAppendEncode-4               	 5820231	        62.65 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAppendEncode-4               	 5801800	        62.13 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAppendEncode-4               	 5759372	        63.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEncodeBroadcast_Baseline-4   	 1371258	       258.4 ns/op	     419 B/op	       6 allocs/op
+BenchmarkEncodeBroadcast_Baseline-4   	 1415102	       258.4 ns/op	     420 B/op	       6 allocs/op
+BenchmarkEncodeBroadcast_Baseline-4   	 1338084	       282.0 ns/op	     421 B/op	       6 allocs/op
+BenchmarkEncodeBroadcast_Append-4     	 2865447	       132.4 ns/op	      72 B/op	       2 allocs/op
+BenchmarkEncodeBroadcast_Append-4     	 2849588	       125.0 ns/op	      72 B/op	       2 allocs/op
+BenchmarkEncodeBroadcast_Append-4     	 2752004	       120.3 ns/op	      72 B/op	       2 allocs/op
+BenchmarkDecode-4                     	21698510	        17.04 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDecode-4                     	20869686	        18.43 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDecode-4                     	21759364	        17.07 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDecodeBatch-4                	 1286770	       280.2 ns/op	4454.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDecodeBatch-4                	 1284232	       280.4 ns/op	4450.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDecodeBatch-4                	 1000000	       320.9 ns/op	3889.04 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPoolGetPut-4                 	 9010654	        40.53 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPoolGetPut-4                 	 8865531	        40.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPoolGetPut-4                 	 8946921	        40.11 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMakeBuffer-4                 	 2212168	       167.8 ns/op	     640 B/op	       1 allocs/op
+BenchmarkMakeBuffer-4                 	 2122057	       181.1 ns/op	     640 B/op	       1 allocs/op
+BenchmarkMakeBuffer-4                 	 2150348	       174.0 ns/op	     640 B/op	       1 allocs/op
+BenchmarkFactsWrite-4                 	  272077	      1436 ns/op	    272077 rows	     982 B/op	      15 allocs/op
+BenchmarkFactsWrite-4                 	  331027	      1466 ns/op	    331027 rows	     860 B/op	      15 allocs/op
+BenchmarkFactsWrite-4                 	  363019	      1530 ns/op	    363019 rows	     921 B/op	      15 allocs/op
+BenchmarkFactsWrite_Duplicate-4       	10807045	        33.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFactsWrite_Duplicate-4       	 9812445	        33.28 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFactsWrite_Duplicate-4       	10915804	        33.10 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDeriveEventID-4              	  536008	       844.5 ns/op	     280 B/op	      13 allocs/op
+BenchmarkDeriveEventID-4              	  562024	       684.8 ns/op	     280 B/op	      13 allocs/op
+BenchmarkDeriveEventID-4              	  576525	       708.7 ns/op	     280 B/op	      13 allocs/op
+BenchmarkFanout_Shared/subs=1-4       	 1982661	       188.0 ns/op	       188.0 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=1-4       	 1869994	       203.0 ns/op	       203.0 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=1-4       	 1844516	       194.9 ns/op	       194.9 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=100-4     	   56426	      6476 ns/op	        64.76 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=100-4     	   55332	      6551 ns/op	        65.51 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=100-4     	   56000	      6617 ns/op	        66.17 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=1000-4    	    5211	     66248 ns/op	        66.25 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=1000-4    	    5559	     64084 ns/op	        64.08 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=1000-4    	    5508	     64798 ns/op	        64.80 ns/sub	      72 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=10000-4   	     505	    702473 ns/op	        70.25 ns/sub	      74 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=10000-4   	     524	    726556 ns/op	        72.66 ns/sub	      74 B/op	       2 allocs/op
+BenchmarkFanout_Shared/subs=10000-4   	     472	    739782 ns/op	        73.98 ns/sub	      75 B/op	       2 allocs/op
+BenchmarkFanout_PerSubscriber/subs=1-4         	 1000000	       394.6 ns/op	       394.6 ns/sub	     664 B/op	       5 allocs/op
+BenchmarkFanout_PerSubscriber/subs=1-4         	 1000000	       374.8 ns/op	       374.8 ns/sub	     664 B/op	       5 allocs/op
+BenchmarkFanout_PerSubscriber/subs=1-4         	 1000000	       351.8 ns/op	       351.8 ns/sub	     664 B/op	       5 allocs/op
+BenchmarkFanout_PerSubscriber/subs=100-4       	   10000	     34432 ns/op	       344.3 ns/sub	   66400 B/op	     500 allocs/op
+BenchmarkFanout_PerSubscriber/subs=100-4       	   10000	     40454 ns/op	       404.5 ns/sub	   66400 B/op	     500 allocs/op
+BenchmarkFanout_PerSubscriber/subs=100-4       	    9741	     34346 ns/op	       343.5 ns/sub	   66400 B/op	     500 allocs/op
+BenchmarkFanout_PerSubscriber/subs=1000-4      	     943	    395172 ns/op	       395.2 ns/sub	  664002 B/op	    5000 allocs/op
+BenchmarkFanout_PerSubscriber/subs=1000-4      	     974	    386063 ns/op	       386.1 ns/sub	  664002 B/op	    5000 allocs/op
+BenchmarkFanout_PerSubscriber/subs=1000-4      	     854	    443069 ns/op	       443.1 ns/sub	  664002 B/op	    5000 allocs/op
+BenchmarkFanout_PerSubscriber/subs=10000-4     	      79	   3827867 ns/op	       382.8 ns/sub	 6640024 B/op	   50000 allocs/op
+BenchmarkFanout_PerSubscriber/subs=10000-4     	      76	   4183728 ns/op	       418.4 ns/sub	 6640017 B/op	   50000 allocs/op
+BenchmarkFanout_PerSubscriber/subs=10000-4     	      98	   3997300 ns/op	       399.7 ns/sub	 6640017 B/op	   50000 allocs/op
+BenchmarkIdleConn_Baseline-4                   	   10000	     34312 ns/op	   99624 B/op	      21 allocs/op
+BenchmarkIdleConn_Baseline-4                   	   10000	     40835 ns/op	   99624 B/op	      21 allocs/op
+BenchmarkIdleConn_Baseline-4                   	   10000	     32326 ns/op	   99624 B/op	      21 allocs/op
+BenchmarkIdleConn_Pooled-4                     	   31542	     15283 ns/op	   25744 B/op	      18 allocs/op
+BenchmarkIdleConn_Pooled-4                     	   28544	     14750 ns/op	   25731 B/op	      18 allocs/op
+BenchmarkIdleConn_Pooled-4                     	   34339	     13681 ns/op	   25735 B/op	      18 allocs/op
+BenchmarkIdleConn_HeartbeatOps/ticker-per-conn-4         	 1557660	       213.4 ns/op	     248 B/op	       3 allocs/op
+BenchmarkIdleConn_HeartbeatOps/ticker-per-conn-4         	 1719370	       194.9 ns/op	     248 B/op	       3 allocs/op
+BenchmarkIdleConn_HeartbeatOps/ticker-per-conn-4         	 1720323	       221.8 ns/op	     248 B/op	       3 allocs/op
+BenchmarkIdleConn_HeartbeatOps/wheel-after-cancel-4      	 3032469	       114.7 ns/op	      77 B/op	       1 allocs/op
+BenchmarkIdleConn_HeartbeatOps/wheel-after-cancel-4      	 3336691	        96.03 ns/op	      73 B/op	       1 allocs/op
+BenchmarkIdleConn_HeartbeatOps/wheel-after-cancel-4      	 3299718	       102.6 ns/op	      73 B/op	       1 allocs/op
+BenchmarkReadLoop_Baseline-4                             	  147867	      2448 ns/op	1202.82 MB/s	         1.016 deadlines/frame	        38.24 ns/frame	         1.016 timecalls/frame	       0 B/op	       0 allocs/op
+BenchmarkReadLoop_Baseline-4                             	  144620	      2569 ns/op	1146.06 MB/s	         1.016 deadlines/frame	        40.14 ns/frame	         1.016 timecalls/frame	       0 B/op	       0 allocs/op
+BenchmarkReadLoop_Baseline-4                             	  148290	      2571 ns/op	1144.92 MB/s	         1.016 deadlines/frame	        40.18 ns/frame	         1.016 timecalls/frame	       0 B/op	       0 allocs/op
+BenchmarkReadLoop_Pooled-4                               	  207133	      1778 ns/op	1655.38 MB/s	         0.01562 deadlines/frame	        27.79 ns/frame	     225 B/op	       2 allocs/op
+BenchmarkReadLoop_Pooled-4                               	  206664	      1757 ns/op	1675.87 MB/s	         0.01562 deadlines/frame	        27.45 ns/frame	     225 B/op	       2 allocs/op
+BenchmarkReadLoop_Pooled-4                               	  207234	      1761 ns/op	1671.81 MB/s	         0.01562 deadlines/frame	        27.52 ns/frame	     226 B/op	       2 allocs/op
+BenchmarkSend-4                                          	  260625	      1402 ns/op	        31.34 deadlines/frame*1e3	       175.2 ns/frame	         0.06269 syscalls/frame	        31.34 writes/frame*1e3	       2 B/op	       0 allocs/op
+BenchmarkSend-4                                          	  242278	      1395 ns/op	        31.48 deadlines/frame*1e3	       174.4 ns/frame	         0.06296 syscalls/frame	        31.48 writes/frame*1e3	       0 B/op	       0 allocs/op
+BenchmarkSend-4                                          	  248754	      1457 ns/op	        31.50 deadlines/frame*1e3	       182.1 ns/frame	         0.06301 syscalls/frame	        31.50 writes/frame*1e3	       0 B/op	       0 allocs/op
+BenchmarkSend_PerFrame-4                                 	  213777	      1683 ns/op	      1000 deadlines/frame*1e3	       210.3 ns/frame	         2.000 syscalls/frame	      1000 writes/frame*1e3	      35 B/op	       0 allocs/op
+BenchmarkSend_PerFrame-4                                 	  220195	      1739 ns/op	      1000 deadlines/frame*1e3	       217.3 ns/frame	         2.000 syscalls/frame	      1000 writes/frame*1e3	      22 B/op	       0 allocs/op
+BenchmarkSend_PerFrame-4                                 	  196402	      1632 ns/op	      1000 deadlines/frame*1e3	       204.0 ns/frame	         2.000 syscalls/frame	      1000 writes/frame*1e3	       7 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=1-4                            	 1582131	       231.0 ns/op	       231.0 ns/frame	         2.000 syscalls/frame	       3 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=1-4                            	 1560861	       230.6 ns/op	       230.6 ns/frame	         2.000 syscalls/frame	       4 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=1-4                            	 1596814	       232.3 ns/op	       232.3 ns/frame	         2.000 syscalls/frame	       4 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=4-4                            	  448642	       767.6 ns/op	       191.9 ns/frame	         0.5001 syscalls/frame	       5 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=4-4                            	  470772	       812.7 ns/op	       203.2 ns/frame	         0.5000 syscalls/frame	       8 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=4-4                            	  459300	       816.1 ns/op	       204.0 ns/frame	         0.5000 syscalls/frame	      10 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=8-4                            	  244077	      1576 ns/op	       197.0 ns/frame	         0.2500 syscalls/frame	      19 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=8-4                            	  226354	      1658 ns/op	       207.3 ns/frame	         0.2500 syscalls/frame	      17 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=8-4                            	  246673	      1495 ns/op	       186.9 ns/frame	         0.2506 syscalls/frame	       8 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=16-4                           	  118758	      2804 ns/op	       175.2 ns/frame	         0.1259 syscalls/frame	       5 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=16-4                           	  119085	      2906 ns/op	       181.6 ns/frame	         0.1251 syscalls/frame	       7 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=16-4                           	  121113	      3388 ns/op	       211.7 ns/frame	         0.1250 syscalls/frame	      18 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=32-4                           	   59865	      5756 ns/op	       179.9 ns/frame	         0.06276 syscalls/frame	       6 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=32-4                           	   59481	      5577 ns/op	       174.3 ns/frame	         0.06260 syscalls/frame	       2 B/op	       0 allocs/op
+BenchmarkWriteBatch/batch=32-4                           	   64678	      6223 ns/op	       194.5 ns/frame	         0.06250 syscalls/frame	      30 B/op	       0 allocs/op
+PASS
+ok  	relayx/s5/benchmark	45.993s

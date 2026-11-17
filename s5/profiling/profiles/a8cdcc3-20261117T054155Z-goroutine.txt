@@ -1,0 +1,17 @@
+goroutine profile: total 2
+1 @ 0x7ff6f48b2a51 0x7ff6f48f4add 0x7ff6f49ba131 0x7ff6f49b9e05 0x7ff6f49b6d69 0x7ff6f49dafcb 0x7ff6f4972ce3 0x7ff6f48fc541
+#	0x7ff6f49ba130	runtime/pprof.writeRuntimeProfile+0xb0			C:/Program Files/Go/src/runtime/pprof/pprof.go:848
+#	0x7ff6f49b9e04	runtime/pprof.writeGoroutine+0x44			C:/Program Files/Go/src/runtime/pprof/pprof.go:781
+#	0x7ff6f49b6d68	runtime/pprof.(*Profile).WriteTo+0x148			C:/Program Files/Go/src/runtime/pprof/pprof.go:405
+#	0x7ff6f49dafca	relayx/s5/benchmark.TestGoroutineProfileSnapshot+0x38a	C:/Users/Administrator/Documents/trae_projects/RelayX/s5/benchmark/goroutine_test.go:37
+#	0x7ff6f4972ce2	testing.tRunner+0xc2					C:/Program Files/Go/src/testing/testing.go:2195
+
+1 @ 0x7ff6f48f5d6a 0x7ff6f4883eae 0x7ff6f48839f2 0x7ff6f4973232 0x7ff6f49787d7 0x7ff6f4972ce3 0x7ff6f4975205 0x7ff6f4973dcf 0x7ff6f49e0c1b 0x7ff6f48bed1b 0x7ff6f48fc541
+#	0x7ff6f4973231	testing.(*T).Run+0x4d1		C:/Program Files/Go/src/testing/testing.go:2268
+#	0x7ff6f49787d6	testing.runTests.func1+0x36	C:/Program Files/Go/src/testing/testing.go:2744
+#	0x7ff6f4972ce2	testing.tRunner+0xc2		C:/Program Files/Go/src/testing/testing.go:2195
+#	0x7ff6f4975204	testing.runTests+0x504		C:/Program Files/Go/src/testing/testing.go:2742
+#	0x7ff6f4973dce	testing.(*M).Run+0x6ae		C:/Program Files/Go/src/testing/testing.go:2602
+#	0x7ff6f49e0c1a	main.main+0x9a			_testmain.go:94
+#	0x7ff6f48bed1a	runtime.main+0x3fa		C:/Program Files/Go/src/runtime/proc.go:302
+
