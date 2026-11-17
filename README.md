@@ -32,9 +32,10 @@ s0/                             传输层与协议          Go module `relayx/s0
 s1/                             单机 Gateway 核心     Go module `relayx/s1`
 s2/                             可靠消息内核          Go module `relayx/s2`
 s3/                             单机订阅与广播        Go module `relayx/s3`
+s4/                             Go SDK 与生命周期事件  Go module `relayx/s4`
 ```
 
-每个阶段是**独立 Go module**（Go 1.27+），由能力位与配置开关渐进启用，阶段快照用 Git Tag，不做目录级代码复制。S1/S2/S3 的 `internal/protocol` 是 S0 冻结协议的快照复用；S2 通过新增 body 布局与继承包实现阶段增量；S3 复用 S1 传输层骨架并新增 `internal/broadcast`。
+每个阶段是**独立 Go module**（Go 1.27+），由能力位与配置开关渐进启用，阶段快照用 Git Tag，不做目录级代码复制。S1/S2/S3 的 `internal/protocol` 是 S0 冻结协议的快照复用；S2 通过新增 body 布局与继承包实现阶段增量；S3 复用 S1 传输层骨架并新增 `internal/broadcast`；S4 把协议提升为公共 `protocol/` 供 `sdk/` 引用，新增 `internal/projector` / `internal/query` / `internal/core`（S2 兼容事实生产者）与公共 `sdk/`。
 
 ## 阶段进展
 
@@ -44,13 +45,13 @@ s3/                             单机订阅与广播        Go module `relayx/s
 | S1 | 单机 Gateway 核心：四通道统一发送路径、鉴权前移、单播/多设备路由 | 已实现 |
 | S2 | 可靠消息内核：统一受理入口、双 store、两个状态机与 CAS、确定性事实 | 已实现，**语义契约在此冻结** |
 | S3 | 单机订阅与广播：`0x10`–`0x14` 帧、共享只读字节引用计数、per-topic 有序扇出 | 已实现 |
-| S4 | Go SDK 与生命周期事件 | 仅设计 |
+| S4 | Go SDK 与生命周期事件：`0x20`–`0x22` 帧、CLOSE 原因码、事件投影、端侧查询 | 已实现 |
 | S5 | 单机性能工程 | 仅设计 |
 | S6 | 分布式 Gateway（只解决「连接在哪」） | 仅设计 |
 | S7 | 分布式投递引擎与总线 | 仅设计 |
 | S8 | 生产就绪加固（唯一一次门禁） | 仅设计 |
 
-S4–S8 目前只有设计文档，没有对应 Go module；实现后续阶段时应按对应 LLD 新建阶段 module。
+S5–S8 目前只有设计文档，没有对应 Go module；实现后续阶段时应按对应 LLD 新建阶段 module。
 
 ## 核心设计要点
 
@@ -133,6 +134,17 @@ go run ./cmd/live -scenario topic-fanout
 
 可用场景：`topic-fanout`、`fanout-order`、`unsubscribe-race`、`compat-old-client`、`shared-buffer-integrity`、`slow-consumer-drop`。协议说明见 [`s3/docs/broadcast-protocol.md`](s3/docs/broadcast-protocol.md)，架构决策记录见 [`s3/docs/adr/`](s3/docs/adr/)。
 
+### S4 Go SDK 与生命周期事件
+
+```powershell
+cd .\s4
+go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802 -test-hooks
+# 另开终端：五个验收场景
+go run ./cmd/scenario -gateway 127.0.0.1:9800 -access http://127.0.0.1:9802 -scenario all
+```
+
+可用场景：`lifecycle-hooks`、`close-reasons`、`message-settled-event`、`event-gap-query`、`compat-matrix`。两个客户端均改用 SDK：`go run ./cmd/im -mode send|receive ...`、`go run ./cmd/live ...`。协议与投影说明见 [`s4/docs/client-events.md`](s4/docs/client-events.md)，SDK API 见 [`s4/docs/sdk-api.md`](s4/docs/sdk-api.md)，投影 ADR 见 [`s4/docs/adr/`](s4/docs/adr/)。
+
 ## 质量门禁
 
 改动某个阶段目录后，必须在该目录重跑全部门禁：
@@ -143,6 +155,8 @@ go vet ./...
 go test ./...
 go test -race ./...        # 并发代码强制项
 ```
+
+S4 的事件投影与 SDK 测试包含在 `go test ./...` / `go test -race ./...` 中（协议、内核、投影、查询、SDK、网关集成）。
 
 基准骨架（S0 / S3 已有）：
 

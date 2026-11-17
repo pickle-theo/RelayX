@@ -11,8 +11,9 @@
 - `s1/`：S1 单机 Gateway 核心的 Go 实现（独立 module `relayx/s1`），含四通道统一发送路径、鉴权前移、单播/多设备路由、`/metrics`+`/healthz`、`cmd/gateway` 与 `cmd/im`；已通过 gofmt / vet / test / -race 与三个验收场景端到端验证。
 - `s2/`：S2 可靠消息内核的 Go 实现（独立 module `relayx/s2`），含统一受理入口、PostgreSQL/内存双 store、两个状态机与 CAS、确定性事实、只读查询 API、`cmd/gateway` / `cmd/scenario` v0 / `cmd/maintenance`；语义契约已冻结于 `docs/contracts/semantic-contract-v1.md`。已通过 gofmt / vet / test / -race、九个验收场景与真实 PostgreSQL 契约测试。
 - `s3/`：S3 单机订阅与广播的 Go 实现（独立 module `relayx/s3`），复用 S1 协议快照与四通道骨架，含 `0x10`–`0x14` 帧、订阅 token 只验签、纯内存双向索引、共享只读字节引用计数（入队 +1 / 写完 -1 / 归零归还）、per-topic 有序扇出、P2 预算耗尽丢弃而非断连、`POST /v1/broadcasts`（202）与 `cmd/live` 六个验收场景；协议说明与 ADR 在 `s3/docs/`。已通过 gofmt / vet / test / -race / bench 与六个端到端场景。
+- `s4/`：S4 Go SDK 与生命周期事件的 Go 实现（独立 module `relayx/s4`），含 `0x20`–`0x22` 帧、CLOSE 原因码表、公共 SDK `relayx/s4/sdk`（状态机 / hooks 有界异步分发 / event_id 去重 / pending 与查询补齐 / 退避重连）、进程内事件投影（游标轮询 `(occurred_at, event_id)`）、self-scoped 路由与 per-session seq、`GET /v1/client/messages*`、`cmd/gateway` / `cmd/im` / `cmd/live` / `cmd/scenario` v1 五个验收场景；协议与投影说明在 `s4/docs/`，游标迁移在 `s4/migrations/0003_projection_cursor.sql`。已通过 gofmt / vet / test / -race 与全部场景端到端验证。
 
-S0、S1、S2、S3 已落地；**S4–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S4+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/`…`s3/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
+S0、S1、S2、S3、S4 已落地；**S5–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S5+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/`…`s4/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
 
 ## 命令
 
@@ -35,10 +36,10 @@ Get-ChildItem -LiteralPath .\docs -Filter 'S*.md' |
 
 ### 已落地代码：可运行门禁
 
-S0 / S1 / S2 / S3 各是独立 Go module（Go 1.27+），工作目录分别为 `s0/`、`s1/`、`s2/`、`s3/`。改动对应目录后必须在该目录重跑：
+S0 / S1 / S2 / S3 / S4 各是独立 Go module（Go 1.27+），工作目录分别为 `s0/`、`s1/`、`s2/`、`s3/`、`s4/`。改动对应目录后必须在该目录重跑：
 
 ```powershell
-cd .\s0   # 或 cd .\s1 / .\s2 / .\s3
+cd .\s0   # 或 cd .\s1 / .\s2 / .\s3 / .\s4
 gofmt -w .                        # 格式化（S0–S8 每阶段通用）
 go vet ./...                      # 静态检查（每阶段通用）
 go test ./...                     # 单元/集成测试（每阶段通用）
@@ -62,10 +63,11 @@ S0 额外有基准骨架：`go test -bench=Benchmark -benchmem ./benchmark/...`�
 - S1：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801` + `go run ./cmd/im -scenario <login-and-chat|multi-device|presence-simple>`；`/metrics` 与 `/healthz` 在 metrics 端口。
 - S2：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802`（默认内存 store；生产用 `-store postgres -dsn ...`）+ `go run ./cmd/scenario -gateway 127.0.0.1:9800 -access 127.0.0.1:9802 -scenario <reliable-online-delivery|multi-device-fanout|offline-recovery|zero-endpoint-settles|business-ack-passthrough|ttl-expiry|retry-exhaustion|clock-skew-immunity|duplicate-settle-cas>`。需要时钟推进的场景必须给网关加 `-test-hooks`（仅本机内存模式提供 `/debug/clock`）。`/metrics` 与 `/healthz` 在 metrics 端口，`/v1/messages*` 在 access 端口。
 - S3：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802` + `go run ./cmd/live -scenario <topic-fanout|fanout-order|unsubscribe-race|compat-old-client|shared-buffer-integrity|slow-consumer-drop>`；`/metrics` 与 `/healthz` 在 metrics 端口（含 `broadcast_*` 指标），`POST /v1/broadcasts` 在 access 端口。
+- S4：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802 -test-hooks` + `go run ./cmd/scenario -gateway 127.0.0.1:9800 -access http://127.0.0.1:9802 -scenario <lifecycle-hooks|close-reasons|message-settled-event|event-gap-query|compat-matrix|all>`；两个 SDK 客户端为 `go run ./cmd/im -mode <send|receive> ...` 与 `go run ./cmd/live ...`。`/metrics` 含 `client_event_*` / `client_query_latency_*` / `reconnect_reason_total`，端侧查询与 HTTP 受理在 access 端口；`/debug/*` 仅在 `-test-hooks` 下注册。
 
-### S4–S8 规划门禁（当前无代码）
+### S5–S8 规划门禁（当前无代码）
 
-以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前只有 S0、S1、S2、S3 有代码可运行：
+以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前只有 S0–S4 有代码可运行：
 
 ```bash
 gofmt -w .                 # 格式化（每阶段通用）
@@ -75,7 +77,7 @@ go test -race ./...        # 并发代码强制竞态检查（S1–S8 强制项�
 go test -bench=. -benchmem ./...   # 基准骨架，S5 用于优化前后对比（见 S5 §3）
 ```
 
-`cmd/echo-client`（S0）、`cmd/gateway` 与 `cmd/im`（S1）、`cmd/gateway`、`cmd/scenario` v0 与 `cmd/maintenance`（S2）、`cmd/gateway` 与 `cmd/live`（S3）已实现。`cmd/scenario` v1（S4 扩展）、`cmd/loadgen`（S5 起）仍是规划的验证客户端，尚未实现。
+`cmd/echo-client`（S0）、`cmd/gateway` 与 `cmd/im`（S1）、`cmd/gateway`、`cmd/scenario` v0 与 `cmd/maintenance`（S2）、`cmd/gateway` 与 `cmd/live`（S3）已实现；S4 交付 `cmd/gateway`、`cmd/im`、`cmd/live` 与 `cmd/scenario` v1（五个验收场景）。`cmd/loadgen`（S5 起）仍是规划的验证客户端，尚未实现。
 
 ## 架构大图景
 
@@ -127,7 +129,7 @@ S0 传输层与协议 → S1 单机 Gateway 核心 → S2 单机可靠消息内�
 
 顺序由依赖方向决定，三条硬约束：语义冻结线 S2 必须早于 S6/S7；统一发送路径 S1 必须早于 S2/S3/S4；S8 必须晚于全部功能阶段。S5 是单机功能冻结后唯一的性能窗口，只改实现效率、不动语义——若某项优化需要改语义，正确动作是停止并重开冻结线。
 
-每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`、`s1/`、`s2/`、`s3/` 已作为独立 Go module 落地（S1/S2/S3 的 `internal/protocol` 是 S0 冻结协议的快照复用，非阶段代码复制；S2 通过新增 body 布局与继承包实现阶段增量；S3 复用 S1 传输层骨架并新增 `internal/broadcast`）；`s4/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
+每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`、`s1/`、`s2/`、`s3/`、`s4/` 已作为独立 Go module 落地（S1/S2/S3 的 `internal/protocol` 是 S0 冻结协议的快照复用，非阶段代码复制；S2 通过新增 body 布局与继承包实现阶段增量；S3 复用 S1 传输层骨架并新增 `internal/broadcast`；S4 复用 S3 快照、把协议提升为公共 `protocol/` 供 `sdk/` 引用，新增 `internal/projector` / `internal/query` / `internal/core`（S2 兼容事实生产者）与公共 `sdk/`）；`s5/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
 
 ### 端到端验证体系
 
