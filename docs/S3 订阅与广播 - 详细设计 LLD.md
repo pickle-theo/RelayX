@@ -166,8 +166,8 @@ type SubscriptionIndex interface {
     // Subscribe 返回是否新建；重复订阅幂等
     Subscribe(sessID string, claims SubscriptionClaims) (bool, error)
     Unsubscribe(sessID, topic string) (bool, error)
-    // Snapshot 在读锁内复制订阅者快照，释放锁后返回
-    Snapshot(topic string) []SubscriberRef
+    // Snapshot 在读锁内复制订阅者快照，释放锁后返回（按租户 + topic 定位）
+    Snapshot(tenantID, topic string) []SubscriberRef
     // RemoveSession 断连清理：移除该会话所有订阅
     RemoveSession(sessID string) []string  // 返回被清理的 topic
     // Stats 容量指标
@@ -386,7 +386,7 @@ SubscribeTokenVerifier.Verify(token):
 
 ```text
 SubscriptionIndex
-  ├── byTopic : map[topic]map[sessID]SubscriberRef
+  ├── byTopic : map[(tenant_id, topic)]map[sessID]SubscriberRef
   └── bySession : map[sessID]map[topic]struct{}
 
 约束：
@@ -396,20 +396,25 @@ SubscriptionIndex
 - 全局订阅总数上限
 ```
 
+> **租户维度不可省略**：`byTopic` 的键必须含 `tenant_id`。同名 topic 在不同租户下互不可见——
+> token 校验（§4.2 步骤 5）只保证「订阅者属于该租户」，若索引只按 topic 建键，
+> 一个租户 publish 的 payload 会投给同名 topic 的其他租户订阅者（跨租户数据泄漏）。
+> `seq` 与 per-topic 串行区同样以 `(tenant_id, topic)` 为单位。
+
 双向索引保证：
 
 - 订阅 / 退订 O(1)。
 - 断连清理 O(该连接订阅数)：从 `bySession[sessID]` 遍历，逐个从 `byTopic` 删除。
-- 扇出 O(该 topic 订阅者数)：从 `byTopic[topic]` 取。
+- 扇出 O(该 topic 订阅者数)：从 `byTopic[(tenant_id, topic)]` 取。
 
 ## 5.2 快照式遍历
 
 ```go
-func (idx *SubscriptionIndex) Snapshot(topic string) []SubscriberRef {
+func (idx *SubscriptionIndex) Snapshot(tenantID, topic string) []SubscriberRef {
     idx.mu.RLock()
     defer idx.mu.RUnlock()
 
-    m := idx.byTopic[topic]
+    m := idx.byTopic[topicKey{tenantID, topic}]
     out := make([]SubscriberRef, 0, len(m))
     for sessID, ref := range m {
         out = append(out, ref)
@@ -427,7 +432,7 @@ func (idx *SubscriptionIndex) Snapshot(topic string) []SubscriberRef {
 | 订阅索引满额 | 返回 `SUBSCRIBE_ACK(result=2)`，不影响已有订阅 |
 | 单连接订阅数超限 | 拒绝新订阅，返回明确错误 |
 | Gateway 重启 | 连接断开 → `RemoveSession` 清理；客户端重连后重新 SUBSCRIBE |
-| topic 无订阅者 | 删除 `byTopic[topic]` 空 map，释放内存 |
+| topic 无订阅者 | 删除 `byTopic[(tenant_id, topic)]` 空 map，释放内存 |
 
 ---
 
@@ -455,7 +460,7 @@ sequenceDiagram
 
     B->>G: POST /v1/broadcasts(topic, payload)
     G->>F: Publish → Fanout
-    F->>I: Snapshot(topic)
+    F->>I: Snapshot(tenant_id, topic)
     I-->>F: []SubscriberRef
     F->>E: Encode once → ImmutableFrame
     loop 每个订阅者
@@ -475,7 +480,7 @@ sequenceDiagram
     participant P as P2 通道
     participant C as 客户端
 
-    F->>I: Snapshot(topic) → [ref(sessID, v=1)]
+    F->>I: Snapshot(tenant_id, topic) → [ref(sessID, v=1)]
     Note over C: 客户端此刻退订
     C->>I: Unsubscribe(sessID, topic) → 删除订阅
     F->>P: TrySendBroadcast(ref)
@@ -514,7 +519,7 @@ Fanout.Fanout(in):
   2. 进入该 topic 的串行区（per-topic 单 goroutine 或锁，§9.3）：
      a. seq   = topicSeq[topic]++                                  // 分配序号
      b. frame = SharedEncoder.Encode(topic, payload, now, seq)      // 返回 *ImmutableFrame，refs=1（扇出方持有）
-     c. subs  = index.Snapshot(topic)
+     c. subs  = index.Snapshot(tenant_id, topic)
      d. for ref in subs:
           if !ref.ConnectionAlive() or ref.VersionChanged(): continue
           err = ref.Sender.TrySendBroadcast(frame)                 // 传指针；成功入队内部 refs+1
