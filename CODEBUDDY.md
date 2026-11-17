@@ -13,8 +13,9 @@
 - `s3/`：S3 单机订阅与广播的 Go 实现（独立 module `relayx/s3`），复用 S1 协议快照与四通道骨架，含 `0x10`–`0x14` 帧、订阅 token 只验签、纯内存双向索引、共享只读字节引用计数（入队 +1 / 写完 -1 / 归零归还）、per-topic 有序扇出、P2 预算耗尽丢弃而非断连、`POST /v1/broadcasts`（202）与 `cmd/live` 六个验收场景；协议说明与 ADR 在 `s3/docs/`。已通过 gofmt / vet / test / -race / bench 与六个端到端场景。
 - `s4/`：S4 Go SDK 与生命周期事件的 Go 实现（独立 module `relayx/s4`），含 `0x20`–`0x22` 帧、CLOSE 原因码表、公共 SDK `relayx/s4/sdk`（状态机 / hooks 有界异步分发 / event_id 去重 / pending 与查询补齐 / 退避重连）、进程内事件投影（游标轮询 `(occurred_at, event_id)`）、self-scoped 路由与 per-session seq、`GET /v1/client/messages*`、`cmd/gateway` / `cmd/im` / `cmd/live` / `cmd/scenario` v1 五个验收场景；协议与投影说明在 `s4/docs/`，游标迁移在 `s4/migrations/0003_projection_cursor.sql`。已通过 gofmt / vet / test / -race 与全部场景端到端验证。
 - `s5/`：S5 单机性能工程的 Go 实现（独立 module `relayx/s5`），**只改实现效率、不动语义**：协议快照 + 追加式编码（`protocol.Append*`，与 `Encode` 逐字节等价）、句柄式分级 buffer 池（`internal/pool`）、批量写 + 双预算 Writer（`internal/sendpath`，一批一次 Deadline、合并一次 Write）、粗粒度读循环（`internal/readloop`）、全局时间轮心跳（`internal/heartbeat`）、基准与 A/B 对照（`benchmark/` + `benchmark/baseline` 冻结基线）、Profiling 管线（`profiling/`）、`cmd/loadgen` v1（爬坡/稳态/下降曲线、混合流量、故障注入、客户端侧延迟分解）与回归保护（`test/regression`：冻结表、编解码等价、四通道隔离、协程泄漏）。产物在 `s5/docs/`（基准报告、压测报告、网络模型选型、容量模型、5 个 ADR）与 `s5/profiling/reports|profiles`。已通过 gofmt / vet / test / -race / bench。
+- `s6/`：S6 分布式 Gateway 的 Go 实现（独立 module `relayx/s6`），**只解决「连接在哪」，不改冻结语义**：节点注册/心跳/DEAD 绑定回收（`internal/node`）、端点路由 + Version 守卫 + 本地缓存降级（`internal/route`）、Backend 抽象与 memory/redis 双实现（`internal/backend`，Lua 原子绑定/解绑/回收）、跨节点 mTLS 尽力转发 + FORWARD/FORWARD_NACK 内部帧（`internal/forward`，`0x30`–`0x3F`）、§4.4 失败→投递状态映射（`internal/dispatch`，S6↔S2 唯一语义接缝）、`cmd/gateway` / `cmd/scenario` 四验收场景与 `test/{integration,failure,compat}`。mTLS 从首个节点间通道即启用（I3），无明文回退。协议/文档见 `s6/docs/`（distributed-routing.md、redis-degradation.md、3 个 ADR）。已通过 gofmt / vet / test / -race 与四场景端到端验证。
 
-S0–S5 已落地；**S6–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S6+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/`…`s5/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
+S0–S6 已落地；**S7–S8 只有设计文档，尚无实现代码，也没有对应的 Go module**。不要为「S7+ 编译失败」寻找不存在的源码——实现后续阶段时应按对应 LLD 新建阶段 module。改动 `s0/`…`s6/` 时要跑代码验证；改动文档时主要维护**跨文档一致性**。
 
 ## 命令
 
@@ -66,10 +67,11 @@ S0 额外有基准骨架：`go test -bench=Benchmark -benchmem ./benchmark/...`�
 - S3：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802` + `go run ./cmd/live -scenario <topic-fanout|fanout-order|unsubscribe-race|compat-old-client|shared-buffer-integrity|slow-consumer-drop>`；`/metrics` 与 `/healthz` 在 metrics 端口（含 `broadcast_*` 指标），`POST /v1/broadcasts` 在 access 端口。
 - S4：`go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802 -test-hooks` + `go run ./cmd/scenario -gateway 127.0.0.1:9800 -access http://127.0.0.1:9802 -scenario <lifecycle-hooks|close-reasons|message-settled-event|event-gap-query|compat-matrix|all>`；两个 SDK 客户端为 `go run ./cmd/im -mode <send|receive> ...` 与 `go run ./cmd/live ...`。`/metrics` 含 `client_event_*` / `client_query_latency_*` / `reconnect_reason_total`，端侧查询与 HTTP 受理在 access 端口；`/debug/*` 仅在 `-test-hooks` 下注册。
 - S5（性能工程，无新服务端）：基准与 A/B 用 `.\benchmark\harness.ps1 after` → `.\benchmark\harness.ps1 ab`（Linux 用 `./benchmark/harness.sh`），Profiling 用 `harness profiles`（五类 pprof 归档到 `s5/profiling/profiles/`）。系统级压测是**用 S5 的 loadgen 压 S4 的 gateway**：`s4` 里 `go run ./cmd/gateway -addr 127.0.0.1:9800 -metrics-addr 127.0.0.1:9801 -access-addr 127.0.0.1:9802`，`s5` 里 `go run ./cmd/loadgen -gateway 127.0.0.1:9800 -conns 500 -topics 4 -rate 2 -curve "ramp:4s:0->1,steady:12s,down:3s:1->0" -out profiling/reports/load-500.json -md profiling/reports/load-500.md`；`-mix` 控制点对点/广播/回执/心跳比例，`-inject-slow/-inject-big/-inject-churn` 做故障注入。
+- S6：`go run ./cmd/gateway -node-id gw1 -dev-certs -backend memory`（本地双节点用不同 `-node-id/-addr/-internal-addr`，生产用 `-cert/-key/-ca`）+ `go run ./cmd/scenario -scenario <multi-node-delivery|node-failover|version-guard|redis-degradation|all>`；四场景用共享 memory backend 的进程内节点 + 真实 mTLS TCP，断言以客户端收到的帧为准。`/metrics` 含 `gateway_nodes_alive` / `gateway_cross_node_forwards_total` / `gateway_stale_unbind_ignored_total` / `gateway_endpoint_binding_reclaimed_total` / `gateway_forward_nack_total{reason}` / `gateway_redis_degraded`，在 metrics 端口。
 
-### S6–S8 规划门禁（当前无代码）
+### S7–S8 规划门禁（当前无代码）
 
-以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前只有 S0–S5 有代码可运行：
+以下命令来自各 LLD 的「验收标准」章节，描述后续阶段落地后必须通过的门禁；当前 S0–S6 有代码可运行：
 
 ```bash
 gofmt -w .                 # 格式化（每阶段通用）
@@ -79,7 +81,7 @@ go test -race ./...        # 并发代码强制竞态检查（S1–S8 强制项�
 go test -bench=. -benchmem ./...   # 基准骨架（S5 的 A/B 用法见 s5/docs/benchmark-report.md）
 ```
 
-`cmd/echo-client`（S0）、`cmd/gateway` 与 `cmd/im`（S1）、`cmd/gateway`、`cmd/scenario` v0 与 `cmd/maintenance`（S2）、`cmd/gateway` 与 `cmd/live`（S3）已实现；S4 交付 `cmd/gateway`、`cmd/im`、`cmd/live` 与 `cmd/scenario` v1（五个验收场景）；S5 交付 `cmd/loadgen` v1（曲线/混合流量/故障注入/延迟分解）与 `benchmark/` + `profiling/` 工具链。
+`cmd/echo-client`（S0）、`cmd/gateway` 与 `cmd/im`（S1）、`cmd/gateway`、`cmd/scenario` v0 与 `cmd/maintenance`（S2）、`cmd/gateway` 与 `cmd/live`（S3）已实现；S4 交付 `cmd/gateway`、`cmd/im`、`cmd/live` 与 `cmd/scenario` v1（五个验收场景）；S5 交付 `cmd/loadgen` v1（曲线/混合流量/故障注入/延迟分解）与 `benchmark/` + `profiling/` 工具链；S6 交付 `cmd/gateway`（mTLS + 路由）与 `cmd/scenario`（四个验收场景）。
 
 ## 架构大图景
 
@@ -131,7 +133,7 @@ S0 传输层与协议 → S1 单机 Gateway 核心 → S2 单机可靠消息内�
 
 顺序由依赖方向决定，三条硬约束：语义冻结线 S2 必须早于 S6/S7；统一发送路径 S1 必须早于 S2/S3/S4；S8 必须晚于全部功能阶段。S5 是单机功能冻结后唯一的性能窗口，只改实现效率、不动语义——若某项优化需要改语义，正确动作是停止并重开冻结线。
 
-每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`、`s1/`、`s2/`、`s3/`、`s4/`、`s5/` 已作为独立 Go module 落地（S1/S2/S3 的 `internal/protocol` 是 S0 冻结协议的快照复用，非阶段代码复制；S2 通过新增 body 布局与继承包实现阶段增量；S3 复用 S1 传输层骨架并新增 `internal/broadcast`；S4 复用 S3 快照、把协议提升为公共 `protocol/` 供 `sdk/` 引用，新增 `internal/projector` / `internal/query` / `internal/core`（S2 兼容事实生产者）与公共 `sdk/`；S5 复用 S4 协议快照并新增 `protocol/append_encode.go` 追加式编码、`internal/pool|readloop|heartbeat` 优化组件、`internal/sendpath` 批量写，以及 `benchmark/`（含冻结基线 `benchmark/baseline`）、`profiling/`、`cmd/loadgen`、`test/regression`）；`s6/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
+每个阶段采用**单一代码库 + 能力位 + 配置开关**渐进启用，阶段快照用 Git Tag，**不做目录级代码复制**。目录 `s0/`、`s1/`、`s2/`、`s3/`、`s4/`、`s5/`、`s6/` 已作为独立 Go module 落地（S1/S2/S3 的 `internal/protocol` 是 S0 冻结协议的快照复用，非阶段代码复制；S2 通过新增 body 布局与继承包实现阶段增量；S3 复用 S1 传输层骨架并新增 `internal/broadcast`；S4 复用 S3 快照、把协议提升为公共 `protocol/` 供 `sdk/` 引用，新增 `internal/projector` / `internal/query` / `internal/core`（S2 兼容事实生产者）与公共 `sdk/`；S5 复用 S4 协议快照并新增 `protocol/append_encode.go` 追加式编码、`internal/pool|readloop|heartbeat` 优化组件、`internal/sendpath` 批量写，以及 `benchmark/`（含冻结基线 `benchmark/baseline`）、`profiling/`、`cmd/loadgen`、`test/regression`；S6 复用 S5 协议快照并新增 `protocol/internal_frame.go`（内部帧 `0x30`–`0x3F`）、`internal/node|route|backend|forward|dispatch` 分布式协调组件，以及 `cmd/gateway`、`cmd/scenario`、`test/{integration,failure,compat,harness}`）；`s7/`…`s8/` 出现在阶段表的「目录」列仍是规划命名，尚未创建。
 
 ### 端到端验证体系
 
